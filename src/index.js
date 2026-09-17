@@ -36,7 +36,7 @@ export default {
 
         if (url.pathname === "/api/questions") {
 
-            return await generateQuestions(url);
+            return await generateQuestions(url, env);
 
         }
 
@@ -51,6 +51,27 @@ export default {
 
     }
 };
+
+
+/*
+ * ============================
+ * CACHE LAST.FM
+ * ============================
+ *
+ * Le Worker peut rester actif entre
+ * plusieurs requêtes.
+ *
+ * On conserve donc temporairement
+ * les résultats Last.fm afin d'éviter
+ * de refaire constamment les mêmes
+ * requêtes.
+ */
+
+const lastFmCache =
+    new Map();
+
+const LASTFM_CACHE_DURATION =
+    30 * 60 * 1000;
 
 
 /*
@@ -237,7 +258,9 @@ async function getLyrics(url) {
 
 
         const response =
-            await fetch(lrclibUrl);
+            await fetch(
+                lrclibUrl
+            );
 
 
         if (!response.ok) {
@@ -280,6 +303,358 @@ async function getLyrics(url) {
         );
 
     }
+
+}
+
+
+/*
+ * ============================
+ * LAST.FM
+ * ============================
+ *
+ * Récupère la popularité réelle
+ * du morceau.
+ *
+ * On utilise en priorité le MBID
+ * fourni par MusicBrainz.
+ *
+ * Last.fm accepte officiellement
+ * un MusicBrainz ID pour track.getInfo.
+ */
+
+
+/*
+ * Seuils de popularité.
+ *
+ * Ils sont volontairement assez élevés
+ * pour que "Facile" signifie réellement
+ * "morceau très connu".
+ */
+
+const POPULARITY_THRESHOLDS = {
+
+    easy:
+        500000,
+
+    medium:
+        100000,
+
+    hard:
+        10000
+
+};
+
+
+async function getLastFmTrackInfo(
+    env,
+    artist,
+    title,
+    mbid = null
+) {
+
+    const apiKey =
+        env.LASTFM_API_KEY;
+
+
+    if (!apiKey) {
+
+        console.error(
+            "Paroles Mystères : LASTFM_API_KEY est absente."
+        );
+
+        return null;
+
+    }
+
+
+    /*
+     * Clé de cache.
+     */
+
+    const cacheKey =
+        mbid
+            ? `mbid:${mbid}`
+            : `track:${normalizeArtistName(artist)}:${normalizeText(title)}`;
+
+
+    const cached =
+        lastFmCache.get(
+            cacheKey
+        );
+
+
+    if (
+        cached &&
+        (
+            Date.now() -
+            cached.timestamp
+        ) <
+        LASTFM_CACHE_DURATION
+    ) {
+
+        return cached.data;
+
+    }
+
+
+    try {
+
+        const params =
+            new URLSearchParams({
+
+                method:
+                    "track.getInfo",
+
+                api_key:
+                    apiKey,
+
+                format:
+                    "json",
+
+                autocorrect:
+                    "1"
+
+            });
+
+
+        /*
+         * On privilégie le MBID car il permet
+         * d'identifier précisément le morceau.
+         */
+
+        if (mbid) {
+
+            params.set(
+                "mbid",
+                mbid
+            );
+
+        } else {
+
+            params.set(
+                "artist",
+                artist
+            );
+
+            params.set(
+                "track",
+                title
+            );
+
+        }
+
+
+        const lastFmUrl =
+            "https://ws.audioscrobbler.com/2.0/?" +
+            params.toString();
+
+
+        const response =
+            await fetch(
+                lastFmUrl,
+                {
+                    headers: {
+
+                        "User-Agent":
+                            "ParolesMysteres/1.0 (Cloudflare Worker)"
+
+                    }
+                }
+            );
+
+
+        if (!response.ok) {
+
+            console.error(
+                "Last.fm HTTP error:",
+                response.status
+            );
+
+            return null;
+
+        }
+
+
+        const data =
+            await response.json();
+
+
+        /*
+         * Last.fm renvoie parfois
+         * une propriété error.
+         */
+
+        if (data.error) {
+
+            console.error(
+                "Last.fm error:",
+                data.message
+            );
+
+            return null;
+
+        }
+
+
+        const track =
+            data.track;
+
+
+        if (!track) {
+
+            return null;
+
+        }
+
+
+        const listeners =
+            Number(
+                track.listeners
+            ) || 0;
+
+
+        const playcount =
+            Number(
+                track.playcount
+            ) || 0;
+
+
+        const result = {
+
+            listeners,
+            playcount,
+
+            artist:
+                track.artist?.name ||
+                artist,
+
+            title:
+                track.name ||
+                title,
+
+            mbid:
+                track.mbid ||
+                mbid,
+
+            url:
+                track.url ||
+                null
+
+        };
+
+
+        /*
+         * Mise en cache.
+         */
+
+        lastFmCache.set(
+            cacheKey,
+            {
+                timestamp:
+                    Date.now(),
+
+                data:
+                    result
+            }
+        );
+
+
+        return result;
+
+
+    } catch (error) {
+
+        console.error(
+            "Erreur Last.fm :",
+            error
+        );
+
+        return null;
+
+    }
+
+}
+
+
+/*
+ * ============================
+ * POPULARITÉ / DIFFICULTÉ
+ * ============================
+ */
+
+function matchesDifficulty(
+    lastFmInfo,
+    difficulty
+) {
+
+    /*
+     * "Toutes les difficultés"
+     * ne filtre pas la popularité.
+     */
+
+    if (
+        difficulty === "all"
+    ) {
+
+        return true;
+
+    }
+
+
+    if (!lastFmInfo) {
+
+        return false;
+
+    }
+
+
+    const listeners =
+        Number(
+            lastFmInfo.listeners
+        ) || 0;
+
+
+    if (
+        difficulty === "easy"
+    ) {
+
+        return (
+            listeners >=
+            POPULARITY_THRESHOLDS.easy
+        );
+
+    }
+
+
+    if (
+        difficulty === "medium"
+    ) {
+
+        return (
+            listeners >=
+            POPULARITY_THRESHOLDS.medium &&
+            listeners <
+            POPULARITY_THRESHOLDS.easy
+        );
+
+    }
+
+
+    if (
+        difficulty === "hard"
+    ) {
+
+        return (
+            listeners >=
+            POPULARITY_THRESHOLDS.hard &&
+            listeners <
+            POPULARITY_THRESHOLDS.medium
+        );
+
+    }
+
+
+    return true;
 
 }
 
@@ -512,7 +887,10 @@ const allArtists =
  * ============================
  */
 
-async function generateQuestions(url) {
+async function generateQuestions(
+    url,
+    env
+) {
 
     const language =
         url.searchParams.get("language") ||
@@ -577,23 +955,25 @@ async function generateQuestions(url) {
      * Mélange des artistes.
      */
 
-    shuffleArray(artists);
+    shuffleArray(
+        artists
+    );
 
 
     const questions = [];
 
 
     /*
-     * On donne davantage de tentatives
-     * que le nombre de questions demandé
-     * afin de compenser les chansons
-     * qui peuvent être rejetées.
+     * Pour les difficultés filtrées,
+     * nous avons besoin de davantage
+     * de tentatives car beaucoup de titres
+     * peuvent être rejetés par Last.fm.
      */
 
     const maxAttempts =
         Math.max(
-            artists.length * 3,
-            number * 5
+            artists.length * 5,
+            number * 10
         );
 
 
@@ -614,12 +994,16 @@ async function generateQuestions(url) {
          * mélangé.
          */
 
-        if (artists.length === 0) {
+        if (
+            artists.length === 0
+        ) {
 
             artists =
                 [...allArtists];
 
-            shuffleArray(artists);
+            shuffleArray(
+                artists
+            );
 
         }
 
@@ -656,14 +1040,18 @@ async function generateQuestions(url) {
                     musicBrainzUrl,
                     {
                         headers: {
+
                             "User-Agent":
                                 "ParolesMysteres/1.0 (Cloudflare Worker)"
+
                         }
                     }
                 );
 
 
-            if (!musicBrainzResponse.ok) {
+            if (
+                !musicBrainzResponse.ok
+            ) {
 
                 await sleep(250);
 
@@ -681,7 +1069,9 @@ async function generateQuestions(url) {
                 [];
 
 
-            if (recordings.length === 0) {
+            if (
+                recordings.length === 0
+            ) {
 
                 await sleep(250);
 
@@ -691,23 +1081,24 @@ async function generateQuestions(url) {
 
 
             /*
-             * On mélange les résultats
-             * afin d'éviter d'avoir toujours
-             * la même chanson.
+             * Mélange des morceaux.
              */
 
-            shuffleArray(recordings);
+            shuffleArray(
+                recordings
+            );
 
 
-            let validRecording = null;
-            let lyricsData = null;
-            let detectedLanguage = null;
+            let validRecording =
+                null;
+
+
+            let detectedLanguage =
+                null;
 
 
             /*
-             * Plusieurs chansons sont essayées
-             * jusqu'à trouver une combinaison
-             * compatible avec les filtres.
+             * Plusieurs morceaux sont testés.
              */
 
             for (
@@ -747,7 +1138,9 @@ async function generateQuestions(url) {
 
 
                 /*
-                 * Vérification de l'époque.
+                 * ============================
+                 * FILTRE ÉPOQUE
+                 * ============================
                  */
 
                 if (
@@ -763,7 +1156,64 @@ async function generateQuestions(url) {
 
 
                 /*
-                 * Recherche des paroles.
+                 * ============================
+                 * LAST.FM
+                 * ============================
+                 *
+                 * On vérifie la popularité
+                 * AVANT de récupérer les paroles.
+                 *
+                 * Cela évite de demander des paroles
+                 * pour des morceaux qui seront de toute
+                 * façon rejetés.
+                 */
+
+                const lastFmInfo =
+                    await getLastFmTrackInfo(
+                        env,
+                        recordingArtist,
+                        recordingTitle,
+                        recording.id
+                    );
+
+
+                /*
+                 * Si une difficulté est demandée,
+                 * un morceau sans information Last.fm
+                 * est rejeté.
+                 *
+                 * C'est volontaire :
+                 * pour "Facile", on préfère ne rien
+                 * proposer plutôt que de prétendre
+                 * qu'un morceau est connu.
+                 */
+
+                if (
+                    difficulty !== "all" &&
+                    !lastFmInfo
+                ) {
+
+                    continue;
+
+                }
+
+
+                if (
+                    !matchesDifficulty(
+                        lastFmInfo,
+                        difficulty
+                    )
+                ) {
+
+                    continue;
+
+                }
+
+
+                /*
+                 * ============================
+                 * LRCLIB
+                 * ============================
                  */
 
                 try {
@@ -771,9 +1221,13 @@ async function generateQuestions(url) {
                     const lrclibUrl =
                         "https://lrclib.net/api/get" +
                         "?artist_name=" +
-                        encodeURIComponent(recordingArtist) +
+                        encodeURIComponent(
+                            recordingArtist
+                        ) +
                         "&track_name=" +
-                        encodeURIComponent(recordingTitle);
+                        encodeURIComponent(
+                            recordingTitle
+                        );
 
 
                     const lyricsResponse =
@@ -782,7 +1236,9 @@ async function generateQuestions(url) {
                         );
 
 
-                    if (!lyricsResponse.ok) {
+                    if (
+                        !lyricsResponse.ok
+                    ) {
 
                         continue;
 
@@ -809,7 +1265,9 @@ async function generateQuestions(url) {
 
 
                     /*
-                     * Détection de langue.
+                     * ============================
+                     * LANGUE
+                     * ============================
                      */
 
                     const languageDetected =
@@ -831,15 +1289,25 @@ async function generateQuestions(url) {
 
 
                     /*
-                     * Création de l'extrait
-                     * en fonction de la difficulté.
+                     * ============================
+                     * EXTRAIT
+                     * ============================
+                     *
+                     * La difficulté ne sert plus
+                     * à choisir un endroit particulier
+                     * dans la chanson.
+                     *
+                     * La popularité du morceau a déjà
+                     * déterminé la difficulté.
+                     *
+                     * L'extrait est donc choisi
+                     * indépendamment.
                      */
 
                     const excerpt =
                         createLyricsExcerpt(
                             fullLyrics,
-                            recordingTitle,
-                            difficulty
+                            recordingTitle
                         );
 
 
@@ -865,12 +1333,25 @@ async function generateQuestions(url) {
                             excerpt,
 
                         language:
-                            languageDetected
+                            languageDetected,
+
+                        popularity:
+                            lastFmInfo
+                                ? lastFmInfo.listeners
+                                : null,
+
+                        playcount:
+                            lastFmInfo
+                                ? lastFmInfo.playcount
+                                : null,
+
+                        lastFmUrl:
+                            lastFmInfo
+                                ? lastFmInfo.url
+                                : null
 
                     };
 
-
-                    lyricsData = data;
 
                     detectedLanguage =
                         languageDetected;
@@ -888,7 +1369,14 @@ async function generateQuestions(url) {
             }
 
 
-            if (!validRecording) {
+            /*
+             * Aucun morceau valide trouvé
+             * pour cet artiste.
+             */
+
+            if (
+                !validRecording
+            ) {
 
                 await sleep(250);
 
@@ -898,7 +1386,9 @@ async function generateQuestions(url) {
 
 
             /*
-             * Ajout de la question.
+             * ============================
+             * AJOUT DE LA QUESTION
+             * ============================
              */
 
             questions.push({
@@ -922,15 +1412,29 @@ async function generateQuestions(url) {
                     detectedLanguage,
 
                 genre:
-                    genre
+                    genre,
+
+                /*
+                 * Ces données sont utiles
+                 * pour le débogage et pourront
+                 * éventuellement être masquées
+                 * plus tard côté client.
+                 */
+
+                popularity:
+                    validRecording.popularity,
+
+                playcount:
+                    validRecording.playcount,
+
+                lastFmUrl:
+                    validRecording.lastFmUrl
 
             });
 
 
             /*
-             * Petite pause pour éviter
-             * d'interroger trop rapidement
-             * les services externes.
+             * Petite pause.
              */
 
             await sleep(250);
@@ -951,7 +1455,9 @@ async function generateQuestions(url) {
 
 
     /*
-     * Réponse finale.
+     * ============================
+     * RÉPONSE FINALE
+     * ============================
      */
 
     return jsonResponse({
@@ -978,10 +1484,14 @@ async function generateQuestions(url) {
  * ============================
  */
 
-function detectLyricsLanguage(lyrics) {
+function detectLyricsLanguage(
+    lyrics
+) {
 
     const text =
-        normalizeText(lyrics);
+        normalizeText(
+            lyrics
+        );
 
 
     const frenchWords = [
@@ -1031,7 +1541,6 @@ function detectLyricsLanguage(lyrics) {
         "est",
         "sont",
         "peut",
-        "veux",
         "veux",
         "vais",
         "va",
@@ -1196,7 +1705,9 @@ function matchesLanguage(
         requestedLanguage === "fr"
     ) {
 
-        return detectedLanguage === "fr";
+        return (
+            detectedLanguage === "fr"
+        );
 
     }
 
@@ -1205,7 +1716,9 @@ function matchesLanguage(
         requestedLanguage === "en"
     ) {
 
-        return detectedLanguage === "en";
+        return (
+            detectedLanguage === "en"
+        );
 
     }
 
@@ -1235,9 +1748,7 @@ function matchesEra(
     }
 
 
-    if (
-        !releaseDate
-    ) {
+    if (!releaseDate) {
 
         return false;
 
@@ -1251,9 +1762,7 @@ function matchesEra(
         );
 
 
-    if (
-        !year
-    ) {
+    if (!year) {
 
         return false;
 
@@ -1324,29 +1833,20 @@ function matchesEra(
  * CRÉATION DE L'EXTRAIT
  * ============================
  *
- * La difficulté agit réellement ici.
+ * IMPORTANT :
  *
- * FACILE :
- * - privilégie les passages situés
- *   au début de la chanson ou dans
- *   les zones centrales.
+ * La popularité du morceau détermine
+ * désormais la difficulté.
  *
- * MOYEN :
- * - sélection équilibrée dans toute
- *   la chanson.
+ * L'extrait lui-même est sélectionné
+ * indépendamment.
  *
- * DIFFICILE :
- * - privilégie les passages moins
- *   évidents, plutôt éloignés du début.
- *
- * ALL :
- * - totalement aléatoire.
+ * On ne force donc PAS le refrain.
  */
 
 function createLyricsExcerpt(
     lyrics,
-    title,
-    difficulty = "all"
+    title
 ) {
 
     const lines =
@@ -1362,11 +1862,6 @@ function createLyricsExcerpt(
             );
 
 
-    /*
-     * Il faut suffisamment de lignes
-     * pour fabriquer un extrait.
-     */
-
     if (
         lines.length < 4
     ) {
@@ -1377,7 +1872,9 @@ function createLyricsExcerpt(
 
 
     const normalizedTitle =
-        normalizeText(title);
+        normalizeText(
+            title
+        );
 
 
     const candidates = [];
@@ -1405,11 +1902,13 @@ function createLyricsExcerpt(
 
 
         const normalizedCombined =
-            normalizeText(combined);
+            normalizeText(
+                combined
+            );
 
 
         /*
-         * Ne pas afficher le titre
+         * Ne pas révéler le titre
          * directement dans l'extrait.
          */
 
@@ -1430,8 +1929,12 @@ function createLyricsExcerpt(
          */
 
         if (
-            normalizeText(firstLine) ===
-            normalizeText(secondLine)
+            normalizeText(
+                firstLine
+            ) ===
+            normalizeText(
+                secondLine
+            )
         ) {
 
             continue;
@@ -1440,8 +1943,8 @@ function createLyricsExcerpt(
 
 
         /*
-         * Évite les extraits bourrés
-         * de répétitions.
+         * Évite les extraits contenant
+         * trop de répétitions.
          */
 
         if (
@@ -1455,22 +1958,9 @@ function createLyricsExcerpt(
         }
 
 
-        candidates.push({
-
-            text:
-                combined,
-
-            index:
-                i,
-
-            position:
-                i /
-                Math.max(
-                    lines.length - 1,
-                    1
-                )
-
-        });
+        candidates.push(
+            combined
+        );
 
     }
 
@@ -1485,210 +1975,25 @@ function createLyricsExcerpt(
 
 
     /*
-     * ============================
-     * DIFFICULTÉ : ALÉATOIRE
-     * ============================
+     * Sélection totalement aléatoire.
+     *
+     * Le morceau est déjà classé par
+     * popularité : nous n'avons donc
+     * aucune raison de favoriser le
+     * refrain pour rendre la question
+     * facile.
      */
 
-    if (
-        difficulty === "all"
-    ) {
-
-        const randomIndex =
-            Math.floor(
-                Math.random() *
-                candidates.length
-            );
-
-
-        return candidates[
-            randomIndex
-        ].text;
-
-    }
-
-
-    /*
-     * ============================
-     * CALCUL DU SCORE
-     * ============================
-     *
-     * On donne à chaque extrait
-     * une probabilité différente
-     * selon sa position.
-     *
-     * Cela évite que la difficulté
-     * soit trop rigide.
-     */
-
-
-    const scoredCandidates =
-        candidates.map(
-            candidate => {
-
-                let score =
-                    Math.random();
-
-
-                const position =
-                    candidate.position;
-
-
-                /*
-                 * FACILE
-                 *
-                 * On favorise :
-                 * - début de chanson
-                 * - premier tiers
-                 * - zone centrale
-                 *
-                 * Le hasard reste présent.
-                 */
-
-                if (
-                    difficulty === "easy"
-                ) {
-
-                    if (
-                        position < 0.35
-                    ) {
-
-                        score += 4;
-
-                    } else if (
-                        position < 0.65
-                    ) {
-
-                        score += 2;
-
-                    } else {
-
-                        score += 0.5;
-
-                    }
-
-                }
-
-
-                /*
-                 * MOYEN
-                 *
-                 * On favorise surtout
-                 * les zones centrales.
-                 */
-
-                else if (
-                    difficulty === "medium"
-                ) {
-
-                    const distance =
-                        Math.abs(
-                            position - 0.5
-                        );
-
-
-                    score +=
-                        Math.max(
-                            0,
-                            3 -
-                            distance * 6
-                        );
-
-                }
-
-
-                /*
-                 * DIFFICILE
-                 *
-                 * On favorise les passages
-                 * plus éloignés du début.
-                 *
-                 * Le score est également
-                 * légèrement meilleur dans
-                 * les zones très éloignées
-                 * du centre.
-                 */
-
-                else if (
-                    difficulty === "hard"
-                ) {
-
-                    if (
-                        position >= 0.65
-                    ) {
-
-                        score += 4;
-
-                    } else if (
-                        position >= 0.45
-                    ) {
-
-                        score += 2.5;
-
-                    } else {
-
-                        score += 0.5;
-
-                    }
-
-                }
-
-
-                return {
-
-                    ...candidate,
-
-                    score
-
-                };
-
-            }
-        );
-
-
-    /*
-     * On trie les candidats par score.
-     */
-
-    scoredCandidates.sort(
-        (
-            a,
-            b
-        ) =>
-            b.score -
-            a.score
-    );
-
-
-    /*
-     * On ne prend pas systématiquement
-     * le meilleur candidat.
-     *
-     * Les 5 meilleurs sont considérés,
-     * puis l'un d'eux est choisi
-     * aléatoirement.
-     *
-     * Cela permet d'avoir une vraie
-     * variation d'une partie à l'autre.
-     */
-
-    const poolSize =
-        Math.min(
-            5,
-            scoredCandidates.length
-        );
-
-
-    const selectedIndex =
+    const randomIndex =
         Math.floor(
             Math.random() *
-            poolSize
+            candidates.length
         );
 
 
-    return scoredCandidates[
-        selectedIndex
-    ].text;
+    return candidates[
+        randomIndex
+    ];
 
 }
 
@@ -1704,7 +2009,9 @@ function hasTooManyRepeatedWords(
 ) {
 
     const words =
-        normalizeText(text)
+        normalizeText(
+            text
+        )
             .split(/\s+/)
             .filter(
                 word =>
@@ -1725,14 +2032,6 @@ function hasTooManyRepeatedWords(
                 0
             ) + 1;
 
-
-        /*
-         * Si un même mot apparaît
-         * trois fois ou plus dans
-         * un extrait de deux lignes,
-         * celui-ci est probablement
-         * peu intéressant.
-         */
 
         if (
             counts[word] >= 3
@@ -1891,6 +2190,7 @@ function jsonResponse(
         ),
         {
             status,
+
             headers: {
 
                 "Content-Type":
