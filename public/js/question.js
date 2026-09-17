@@ -1,8 +1,10 @@
 document.addEventListener("DOMContentLoaded", async function () {
 
-    // =========================================================
-    // ÉLÉMENTS HTML
-    // =========================================================
+    /*
+     * ========================================
+     * ÉLÉMENTS DE LA PAGE
+     * ========================================
+     */
 
     const lyricsElement =
         document.getElementById("lyrics");
@@ -79,9 +81,11 @@ document.addEventListener("DOMContentLoaded", async function () {
         );
 
 
-    // =========================================================
-    // VÉRIFICATION
-    // =========================================================
+    /*
+     * ========================================
+     * VÉRIFICATION
+     * ========================================
+     */
 
     if (
         !lyricsElement ||
@@ -97,9 +101,11 @@ document.addEventListener("DOMContentLoaded", async function () {
     }
 
 
-    // =========================================================
-    // PARAMÈTRES
-    // =========================================================
+    /*
+     * ========================================
+     * RÉCUPÉRATION DES PARAMÈTRES
+     * ========================================
+     */
 
     let settings =
         localStorage.getItem(
@@ -128,26 +134,36 @@ document.addEventListener("DOMContentLoaded", async function () {
     }
 
 
+    /*
+     * Paramètres par défaut
+     */
+
     if (!settings) {
 
         settings = {
 
-            genre: "all",
+            genre:
+                "all",
 
-            era: "all",
+            era:
+                "all",
 
-            difficulty: "all",
+            difficulty:
+                "all",
 
-            number: 10
+            number:
+                10
 
         };
 
     }
 
 
-    // =========================================================
-    // VARIABLES
-    // =========================================================
+    /*
+     * ========================================
+     * VARIABLES DU JEU
+     * ========================================
+     */
 
     let currentQuestionIndex = 0;
 
@@ -156,9 +172,11 @@ document.addEventListener("DOMContentLoaded", async function () {
     let gameQuestions = [];
 
 
-    // =========================================================
-    // NORMALISATION
-    // =========================================================
+    /*
+     * ========================================
+     * NORMALISATION
+     * ========================================
+     */
 
     function normalizeText(text) {
 
@@ -188,16 +206,19 @@ document.addEventListener("DOMContentLoaded", async function () {
     }
 
 
-    // =========================================================
-    // CHARGEMENT DES QUESTIONS
-    // =========================================================
+    /*
+     * ========================================
+     * CHARGEMENT DES QUESTIONS
+     * ========================================
+     */
 
     async function loadQuestions() {
 
         lyricsElement.textContent =
-            "Recherche des chansons...";
+            "🎵 Recherche des chansons...";
 
-        validateButton.disabled = true;
+        validateButton.disabled =
+            true;
 
 
         try {
@@ -254,12 +275,8 @@ document.addEventListener("DOMContentLoaded", async function () {
             }
 
 
-            gameQuestions =
-                data.questions;
-
-
             if (
-                gameQuestions.length === 0
+                data.questions.length === 0
             ) {
 
                 throw new Error(
@@ -267,6 +284,10 @@ document.addEventListener("DOMContentLoaded", async function () {
                 );
 
             }
+
+
+            gameQuestions =
+                data.questions;
 
 
             totalQuestionsElement.textContent =
@@ -285,8 +306,7 @@ document.addEventListener("DOMContentLoaded", async function () {
 
 
             lyricsElement.textContent =
-                "Impossible de charger les questions. Réessaie dans quelques instants.";
-
+                "❌ Impossible de charger les questions. Réessaie dans quelques instants.";
 
             return false;
 
@@ -295,9 +315,11 @@ document.addEventListener("DOMContentLoaded", async function () {
     }
 
 
-    // =========================================================
-    // AFFICHER UNE QUESTION
-    // =========================================================
+    /*
+     * ========================================
+     * AFFICHER UNE QUESTION
+     * ========================================
+     */
 
     function displayQuestion() {
 
@@ -324,14 +346,15 @@ document.addEventListener("DOMContentLoaded", async function () {
             question.lyrics;
 
 
-        artistInput.value = "";
+        artistInput.value =
+            "";
 
-        titleInput.value = "";
+        titleInput.value =
+            "";
 
 
         answerCard.style.display =
             "block";
-
 
         resultCard.style.display =
             "none";
@@ -346,9 +369,11 @@ document.addEventListener("DOMContentLoaded", async function () {
     }
 
 
-    // =========================================================
-    // SCORE
-    // =========================================================
+    /*
+     * ========================================
+     * SCORE
+     * ========================================
+     */
 
     function updateScore() {
 
@@ -358,9 +383,11 @@ document.addEventListener("DOMContentLoaded", async function () {
     }
 
 
-    // =========================================================
-    // VÉRIFICATION DE LA RÉPONSE
-    // =========================================================
+    /*
+     * ========================================
+     * VÉRIFICATION DE LA RÉPONSE
+     * ========================================
+     */
 
     function checkAnswer() {
 
@@ -371,9 +398,7 @@ document.addEventListener("DOMContentLoaded", async function () {
 
 
         if (!question) {
-
             return;
-
         }
 
 
@@ -404,7 +429,9 @@ document.addEventListener("DOMContentLoaded", async function () {
         let points = 0;
 
 
-        // Artiste
+        /*
+         * Artiste
+         */
 
         if (
             playerArtist !== "" &&
@@ -416,7 +443,9 @@ document.addEventListener("DOMContentLoaded", async function () {
         }
 
 
-        // Titre
+        /*
+         * Titre
+         */
 
         if (
             playerTitle !== "" &&
@@ -428,7 +457,8 @@ document.addEventListener("DOMContentLoaded", async function () {
         }
 
 
-        score += points;
+        score +=
+            points;
 
 
         updateScore();
@@ -442,9 +472,11 @@ document.addEventListener("DOMContentLoaded", async function () {
     }
 
 
-    // =========================================================
-    // AFFICHER LE RÉSULTAT
-    // =========================================================
+    /*
+     * ========================================
+     * AFFICHAGE DU RÉSULTAT
+     * ========================================
+     */
 
     function showResult(
         question,
@@ -471,39 +503,59 @@ document.addEventListener("DOMContentLoaded", async function () {
             points;
 
 
+        /*
+         * 2 POINTS
+         */
+
         if (points === 2) {
 
             resultIcon.textContent =
                 "🎉";
 
+
             resultTitle.textContent =
                 "Excellent !";
+
 
             resultMessage.textContent =
                 "Tu as trouvé l'artiste et le titre !";
 
         }
 
+
+        /*
+         * 1 POINT
+         */
+
         else if (points === 1) {
 
             resultIcon.textContent =
                 "👍";
 
+
             resultTitle.textContent =
                 "Bien joué !";
+
 
             resultMessage.textContent =
                 "Tu as trouvé une des deux réponses.";
 
         }
 
+
+        /*
+         * 0 POINT
+         */
+
         else {
 
             resultIcon.textContent =
                 "❌";
 
+
             resultTitle.textContent =
                 "Dommage !";
+
 
             resultMessage.textContent =
                 "Tu feras mieux à la prochaine.";
@@ -514,6 +566,10 @@ document.addEventListener("DOMContentLoaded", async function () {
         resultCard.style.display =
             "block";
 
+
+        /*
+         * Dernière question
+         */
 
         if (
             currentQuestionIndex >=
@@ -535,9 +591,11 @@ document.addEventListener("DOMContentLoaded", async function () {
     }
 
 
-    // =========================================================
-    // QUESTION SUIVANTE
-    // =========================================================
+    /*
+     * ========================================
+     * QUESTION SUIVANTE
+     * ========================================
+     */
 
     function nextQuestion() {
 
@@ -561,9 +619,11 @@ document.addEventListener("DOMContentLoaded", async function () {
     }
 
 
-    // =========================================================
-    // FIN DU JEU
-    // =========================================================
+    /*
+     * ========================================
+     * FIN DE PARTIE
+     * ========================================
+     */
 
     function endGame() {
 
@@ -638,9 +698,11 @@ document.addEventListener("DOMContentLoaded", async function () {
     }
 
 
-    // =========================================================
-    // BOUTON VALIDER
-    // =========================================================
+    /*
+     * ========================================
+     * BOUTONS
+     * ========================================
+     */
 
     validateButton.addEventListener(
         "click",
@@ -652,10 +714,6 @@ document.addEventListener("DOMContentLoaded", async function () {
     );
 
 
-    // =========================================================
-    // BOUTON SUIVANT
-    // =========================================================
-
     nextQuestionButton.addEventListener(
         "click",
         function () {
@@ -666,9 +724,11 @@ document.addEventListener("DOMContentLoaded", async function () {
     );
 
 
-    // =========================================================
-    // TOUCHE ENTRÉE
-    // =========================================================
+    /*
+     * ========================================
+     * TOUCHE ENTRÉE
+     * ========================================
+     */
 
     artistInput.addEventListener(
         "keydown",
@@ -704,9 +764,11 @@ document.addEventListener("DOMContentLoaded", async function () {
     );
 
 
-    // =========================================================
-    // LANCEMENT
-    // =========================================================
+    /*
+     * ========================================
+     * DÉMARRAGE
+     * ========================================
+     */
 
     const success =
         await loadQuestions();
