@@ -49,21 +49,41 @@ document.addEventListener("DOMContentLoaded", async function () {
         document.getElementById("score");
 
 
+    /*
+     * Vérification des éléments de la page.
+     */
+
     if (
         !lyricsElement ||
-        !validateButton
+        !currentQuestionElement ||
+        !totalQuestionsElement ||
+        !artistInput ||
+        !titleInput ||
+        !validateButton ||
+        !nextQuestionButton ||
+        !answerCard ||
+        !resultCard ||
+        !resultIcon ||
+        !resultTitle ||
+        !resultMessage ||
+        !correctArtist ||
+        !correctTitle ||
+        !pointsEarned ||
+        !scoreElement
     ) {
+
         console.error(
-            "Impossible de trouver les éléments du quiz."
+            "Paroles Mystères : certains éléments du quiz sont introuvables."
         );
 
         return;
     }
 
 
-    /* =====================================================
-       RÉCUPÉRATION DES PARAMÈTRES
-       ===================================================== */
+    /*
+     * Récupération des paramètres
+     * de la partie.
+     */
 
     let settings =
         localStorage.getItem(
@@ -81,7 +101,7 @@ document.addEventListener("DOMContentLoaded", async function () {
         } catch (error) {
 
             console.error(
-                "Impossible de lire les paramètres.",
+                "Impossible de lire les paramètres de la partie.",
                 error
             );
 
@@ -111,11 +131,6 @@ document.addEventListener("DOMContentLoaded", async function () {
     }
 
 
-    /*
-     * Compatibilité avec une ancienne configuration
-     * qui ne possédait pas encore "language".
-     */
-
     if (!settings.language) {
 
         settings.language =
@@ -123,20 +138,53 @@ document.addEventListener("DOMContentLoaded", async function () {
     }
 
 
-    let currentQuestionIndex = 0;
+    if (!settings.genre) {
 
-    let score = 0;
+        settings.genre =
+            "all";
+    }
 
-    let gameQuestions = [];
+
+    if (!settings.era) {
+
+        settings.era =
+            "all";
+    }
 
 
-    /* =====================================================
-       NORMALISATION DU TEXTE
-       ===================================================== */
+    if (!settings.difficulty) {
 
-    function normalizeText(
-        text
-    ) {
+        settings.difficulty =
+            "all";
+    }
+
+
+    if (!settings.number) {
+
+        settings.number =
+            10;
+    }
+
+
+    /*
+     * Variables de la partie.
+     */
+
+    let currentQuestionIndex =
+        0;
+
+    let score =
+        0;
+
+    let gameQuestions =
+        [];
+
+
+    /*
+     * Normalisation des réponses.
+     */
+
+    function normalizeText(text) {
 
         return String(text)
 
@@ -163,15 +211,14 @@ document.addEventListener("DOMContentLoaded", async function () {
     }
 
 
-    /* =====================================================
-       CHARGEMENT DES QUESTIONS
-       ===================================================== */
+    /*
+     * Chargement des questions.
+     */
 
     async function loadQuestions() {
 
         lyricsElement.textContent =
             "🎵 Recherche des chansons...";
-
 
         validateButton.disabled =
             true;
@@ -199,10 +246,19 @@ document.addEventListener("DOMContentLoaded", async function () {
                 });
 
 
+            const url =
+                "/api/questions?" +
+                params.toString();
+
+
+            console.log(
+                "Paroles Mystères : chargement des questions :",
+                url
+            );
+
+
             const response =
-                await fetch(
-                    `/api/questions?${params.toString()}`
-                );
+                await fetch(url);
 
 
             if (!response.ok) {
@@ -218,6 +274,12 @@ document.addEventListener("DOMContentLoaded", async function () {
                 await response.json();
 
 
+            console.log(
+                "Paroles Mystères : questions reçues :",
+                data
+            );
+
+
             if (
                 !data.questions ||
                 !Array.isArray(
@@ -226,7 +288,7 @@ document.addEventListener("DOMContentLoaded", async function () {
             ) {
 
                 throw new Error(
-                    "Réponse API invalide."
+                    "La réponse de l'API ne contient pas de liste de questions."
                 );
             }
 
@@ -236,7 +298,7 @@ document.addEventListener("DOMContentLoaded", async function () {
             ) {
 
                 throw new Error(
-                    "Aucune question disponible."
+                    "Aucune question disponible avec ces paramètres."
                 );
             }
 
@@ -269,9 +331,9 @@ document.addEventListener("DOMContentLoaded", async function () {
     }
 
 
-    /* =====================================================
-       AFFICHAGE D'UNE QUESTION
-       ===================================================== */
+    /*
+     * Affichage d'une question.
+     */
 
     function displayQuestion() {
 
@@ -320,9 +382,9 @@ document.addEventListener("DOMContentLoaded", async function () {
     }
 
 
-    /* =====================================================
-       SCORE
-       ===================================================== */
+    /*
+     * Mise à jour du score.
+     */
 
     function updateScore() {
 
@@ -331,9 +393,9 @@ document.addEventListener("DOMContentLoaded", async function () {
     }
 
 
-    /* =====================================================
-       VÉRIFICATION DE LA RÉPONSE
-       ===================================================== */
+    /*
+     * Vérification de la réponse.
+     */
 
     function checkAnswer() {
 
@@ -344,6 +406,7 @@ document.addEventListener("DOMContentLoaded", async function () {
 
 
         if (!question) {
+
             return;
         }
 
@@ -372,7 +435,8 @@ document.addEventListener("DOMContentLoaded", async function () {
             );
 
 
-        let points = 0;
+        let points =
+            0;
 
 
         if (
@@ -395,7 +459,8 @@ document.addEventListener("DOMContentLoaded", async function () {
         }
 
 
-        score += points;
+        score +=
+            points;
 
 
         updateScore();
@@ -408,9 +473,9 @@ document.addEventListener("DOMContentLoaded", async function () {
     }
 
 
-    /* =====================================================
-       AFFICHAGE DU RÉSULTAT
-       ===================================================== */
+    /*
+     * Affichage du résultat.
+     */
 
     function showResult(
         question,
@@ -442,38 +507,30 @@ document.addEventListener("DOMContentLoaded", async function () {
             resultIcon.textContent =
                 "🎉";
 
-
             resultTitle.textContent =
                 "Excellent !";
 
-
             resultMessage.textContent =
                 "Tu as trouvé l'artiste et le titre !";
-
 
         } else if (points === 1) {
 
             resultIcon.textContent =
                 "👍";
 
-
             resultTitle.textContent =
                 "Bien joué !";
 
-
             resultMessage.textContent =
                 "Tu as trouvé une des deux réponses.";
-
 
         } else {
 
             resultIcon.textContent =
                 "❌";
 
-
             resultTitle.textContent =
                 "Dommage !";
-
 
             resultMessage.textContent =
                 "Tu feras mieux à la prochaine.";
@@ -500,9 +557,9 @@ document.addEventListener("DOMContentLoaded", async function () {
     }
 
 
-    /* =====================================================
-       QUESTION SUIVANTE
-       ===================================================== */
+    /*
+     * Passage à la question suivante.
+     */
 
     function nextQuestion() {
 
@@ -524,9 +581,9 @@ document.addEventListener("DOMContentLoaded", async function () {
     }
 
 
-    /* =====================================================
-       FIN DE PARTIE
-       ===================================================== */
+    /*
+     * Fin de la partie.
+     */
 
     function endGame() {
 
@@ -547,17 +604,29 @@ document.addEventListener("DOMContentLoaded", async function () {
 
 
         resultMessage.textContent =
-            "Voici ton score final:";
+            "Voici ton score final :";
 
 
-        correctArtist.parentElement
-            .style.display =
-            "none";
+        const artistRow =
+            correctArtist.parentElement;
 
 
-        correctTitle.parentElement
-            .style.display =
-            "none";
+        const titleRow =
+            correctTitle.parentElement;
+
+
+        if (artistRow) {
+
+            artistRow.style.display =
+                "none";
+        }
+
+
+        if (titleRow) {
+
+            titleRow.style.display =
+                "none";
+        }
 
 
         const pointsLabel =
@@ -570,7 +639,7 @@ document.addEventListener("DOMContentLoaded", async function () {
 
             pointsLabel.innerHTML =
                 "🏆 Score final : " +
-                "<span id=\"points-earned\">" +
+                "<span>" +
                 score +
                 " / " +
                 (
@@ -598,9 +667,9 @@ document.addEventListener("DOMContentLoaded", async function () {
     }
 
 
-    /* =====================================================
-       ÉVÉNEMENTS
-       ===================================================== */
+    /*
+     * Bouton "Valider".
+     */
 
     validateButton.addEventListener(
         "click",
@@ -611,6 +680,10 @@ document.addEventListener("DOMContentLoaded", async function () {
     );
 
 
+    /*
+     * Bouton "Question suivante".
+     */
+
     nextQuestionButton.addEventListener(
         "click",
         function () {
@@ -619,6 +692,10 @@ document.addEventListener("DOMContentLoaded", async function () {
         }
     );
 
+
+    /*
+     * Touche Entrée dans le champ artiste.
+     */
 
     artistInput.addEventListener(
         "keydown",
@@ -635,6 +712,10 @@ document.addEventListener("DOMContentLoaded", async function () {
     );
 
 
+    /*
+     * Touche Entrée dans le champ titre.
+     */
+
     titleInput.addEventListener(
         "keydown",
         function (event) {
@@ -650,9 +731,9 @@ document.addEventListener("DOMContentLoaded", async function () {
     );
 
 
-    /* =====================================================
-       LANCEMENT
-       ===================================================== */
+    /*
+     * Chargement initial.
+     */
 
     const success =
         await loadQuestions();
@@ -666,4 +747,3 @@ document.addEventListener("DOMContentLoaded", async function () {
     }
 
 });
-```
