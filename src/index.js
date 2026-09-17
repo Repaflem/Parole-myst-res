@@ -3,6 +3,7 @@ export default {
 
         const url = new URL(request.url);
 
+
         /*
          * ================================
          * TEST DE L'API
@@ -140,6 +141,123 @@ export default {
                         success: false,
                         error:
                             "Impossible de contacter MusicBrainz."
+                    },
+                    500
+                );
+
+            }
+
+        }
+
+
+        /*
+         * ================================
+         * RECHERCHE DES PAROLES LRCLIB
+         * ================================
+         */
+
+        if (url.pathname === "/api/lyrics") {
+
+            const artist =
+                url.searchParams.get("artist");
+
+            const title =
+                url.searchParams.get("title");
+
+
+            if (!artist || !title) {
+
+                return jsonResponse(
+                    {
+                        success: false,
+                        error: "Artiste et titre requis."
+                    },
+                    400
+                );
+
+            }
+
+
+            try {
+
+                const lrclibUrl =
+                    "https://lrclib.net/api/get" +
+                    "?artist_name=" +
+                    encodeURIComponent(artist) +
+                    "&track_name=" +
+                    encodeURIComponent(title);
+
+
+                const response =
+                    await fetch(
+                        lrclibUrl
+                    );
+
+
+                if (!response.ok) {
+
+                    return jsonResponse(
+                        {
+                            success: false,
+                            error:
+                                "Paroles introuvables.",
+                            status:
+                                response.status
+                        },
+                        404
+                    );
+
+                }
+
+
+                const data =
+                    await response.json();
+
+
+                return jsonResponse({
+
+                    success: true,
+
+                    artist:
+                        data.artistName ||
+                        artist,
+
+                    title:
+                        data.trackName ||
+                        title,
+
+                    album:
+                        data.albumName ||
+                        null,
+
+                    duration:
+                        data.duration ||
+                        null,
+
+                    lyrics:
+                        data.plainLyrics ||
+                        null,
+
+                    syncedLyrics:
+                        data.syncedLyrics ||
+                        null
+
+                });
+
+
+            } catch (error) {
+
+                console.error(
+                    "Erreur LRCLIB :",
+                    error
+                );
+
+
+                return jsonResponse(
+                    {
+                        success: false,
+                        error:
+                            "Impossible de contacter LRCLIB."
                     },
                     500
                 );
