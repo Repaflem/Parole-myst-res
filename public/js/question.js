@@ -1,23 +1,14 @@
+```javascript
 document.addEventListener("DOMContentLoaded", async function () {
-
-    /*
-     * ========================================
-     * ÉLÉMENTS DE LA PAGE
-     * ========================================
-     */
 
     const lyricsElement =
         document.getElementById("lyrics");
 
     const currentQuestionElement =
-        document.getElementById(
-            "current-question"
-        );
+        document.getElementById("current-question");
 
     const totalQuestionsElement =
-        document.getElementById(
-            "total-questions"
-        );
+        document.getElementById("total-questions");
 
     const artistInput =
         document.getElementById("artist");
@@ -26,86 +17,54 @@ document.addEventListener("DOMContentLoaded", async function () {
         document.getElementById("title");
 
     const validateButton =
-        document.getElementById(
-            "validate-answer"
-        );
+        document.getElementById("validate-answer");
 
     const nextQuestionButton =
-        document.getElementById(
-            "next-question"
-        );
+        document.getElementById("next-question");
 
     const answerCard =
-        document.getElementById(
-            "answer-card"
-        );
+        document.getElementById("answer-card");
 
     const resultCard =
-        document.getElementById(
-            "result-card"
-        );
+        document.getElementById("result-card");
 
     const resultIcon =
-        document.getElementById(
-            "result-icon"
-        );
+        document.getElementById("result-icon");
 
     const resultTitle =
-        document.getElementById(
-            "result-title"
-        );
+        document.getElementById("result-title");
 
     const resultMessage =
-        document.getElementById(
-            "result-message"
-        );
+        document.getElementById("result-message");
 
     const correctArtist =
-        document.getElementById(
-            "correct-artist"
-        );
+        document.getElementById("correct-artist");
 
     const correctTitle =
-        document.getElementById(
-            "correct-title"
-        );
+        document.getElementById("correct-title");
 
     const pointsEarned =
-        document.getElementById(
-            "points-earned"
-        );
+        document.getElementById("points-earned");
 
     const scoreElement =
-        document.getElementById(
-            "score"
-        );
+        document.getElementById("score");
 
-
-    /*
-     * ========================================
-     * VÉRIFICATION
-     * ========================================
-     */
 
     if (
         !lyricsElement ||
         !validateButton
     ) {
-
         console.error(
             "Impossible de trouver les éléments du quiz."
         );
 
         return;
-
     }
 
 
-    /*
-     * ========================================
-     * RÉCUPÉRATION DES PARAMÈTRES
-     * ========================================
-     */
+    /* =====================================================
+       RÉCUPÉRATION DES PARAMÈTRES
+       ===================================================== */
 
     let settings =
         localStorage.getItem(
@@ -128,42 +87,42 @@ document.addEventListener("DOMContentLoaded", async function () {
             );
 
             settings = null;
-
         }
-
     }
 
 
     /*
-     * Paramètres par défaut
+     * Paramètres par défaut.
      */
 
     if (!settings) {
 
         settings = {
 
-            genre:
-                "all",
+            language: "both",
 
-            era:
-                "all",
+            genre: "all",
 
-            difficulty:
-                "all",
+            era: "all",
 
-            number:
-                10
+            difficulty: "all",
 
+            number: 10
         };
-
     }
 
 
     /*
-     * ========================================
-     * VARIABLES DU JEU
-     * ========================================
+     * Compatibilité avec une ancienne configuration
+     * qui ne possédait pas encore "language".
      */
+
+    if (!settings.language) {
+
+        settings.language =
+            "both";
+    }
+
 
     let currentQuestionIndex = 0;
 
@@ -172,13 +131,13 @@ document.addEventListener("DOMContentLoaded", async function () {
     let gameQuestions = [];
 
 
-    /*
-     * ========================================
-     * NORMALISATION
-     * ========================================
-     */
+    /* =====================================================
+       NORMALISATION DU TEXTE
+       ===================================================== */
 
-    function normalizeText(text) {
+    function normalizeText(
+        text
+    ) {
 
         return String(text)
 
@@ -202,20 +161,18 @@ document.addEventListener("DOMContentLoaded", async function () {
             )
 
             .trim();
-
     }
 
 
-    /*
-     * ========================================
-     * CHARGEMENT DES QUESTIONS
-     * ========================================
-     */
+    /* =====================================================
+       CHARGEMENT DES QUESTIONS
+       ===================================================== */
 
     async function loadQuestions() {
 
         lyricsElement.textContent =
             "🎵 Recherche des chansons...";
+
 
         validateButton.disabled =
             true;
@@ -225,6 +182,9 @@ document.addEventListener("DOMContentLoaded", async function () {
 
             const params =
                 new URLSearchParams({
+
+                    language:
+                        settings.language,
 
                     genre:
                         settings.genre,
@@ -237,7 +197,6 @@ document.addEventListener("DOMContentLoaded", async function () {
 
                     number:
                         settings.number
-
                 });
 
 
@@ -253,7 +212,6 @@ document.addEventListener("DOMContentLoaded", async function () {
                     "Erreur HTTP " +
                     response.status
                 );
-
             }
 
 
@@ -271,7 +229,6 @@ document.addEventListener("DOMContentLoaded", async function () {
                 throw new Error(
                     "Réponse API invalide."
                 );
-
             }
 
 
@@ -282,7 +239,6 @@ document.addEventListener("DOMContentLoaded", async function () {
                 throw new Error(
                     "Aucune question disponible."
                 );
-
             }
 
 
@@ -308,18 +264,15 @@ document.addEventListener("DOMContentLoaded", async function () {
             lyricsElement.textContent =
                 "❌ Impossible de charger les questions. Réessaie dans quelques instants.";
 
+
             return false;
-
         }
-
     }
 
 
-    /*
-     * ========================================
-     * AFFICHER UNE QUESTION
-     * ========================================
-     */
+    /* =====================================================
+       AFFICHAGE D'UNE QUESTION
+       ===================================================== */
 
     function displayQuestion() {
 
@@ -334,7 +287,6 @@ document.addEventListener("DOMContentLoaded", async function () {
             endGame();
 
             return;
-
         }
 
 
@@ -356,6 +308,7 @@ document.addEventListener("DOMContentLoaded", async function () {
         answerCard.style.display =
             "block";
 
+
         resultCard.style.display =
             "none";
 
@@ -365,29 +318,23 @@ document.addEventListener("DOMContentLoaded", async function () {
 
 
         artistInput.focus();
-
     }
 
 
-    /*
-     * ========================================
-     * SCORE
-     * ========================================
-     */
+    /* =====================================================
+       SCORE
+       ===================================================== */
 
     function updateScore() {
 
         scoreElement.textContent =
             score;
-
     }
 
 
-    /*
-     * ========================================
-     * VÉRIFICATION DE LA RÉPONSE
-     * ========================================
-     */
+    /* =====================================================
+       VÉRIFICATION DE LA RÉPONSE
+       ===================================================== */
 
     function checkAnswer() {
 
@@ -429,36 +376,27 @@ document.addEventListener("DOMContentLoaded", async function () {
         let points = 0;
 
 
-        /*
-         * Artiste
-         */
-
         if (
             playerArtist !== "" &&
-            playerArtist === expectedArtist
+            playerArtist ===
+                expectedArtist
         ) {
 
             points++;
-
         }
 
-
-        /*
-         * Titre
-         */
 
         if (
             playerTitle !== "" &&
-            playerTitle === expectedTitle
+            playerTitle ===
+                expectedTitle
         ) {
 
             points++;
-
         }
 
 
-        score +=
-            points;
+        score += points;
 
 
         updateScore();
@@ -468,15 +406,12 @@ document.addEventListener("DOMContentLoaded", async function () {
             question,
             points
         );
-
     }
 
 
-    /*
-     * ========================================
-     * AFFICHAGE DU RÉSULTAT
-     * ========================================
-     */
+    /* =====================================================
+       AFFICHAGE DU RÉSULTAT
+       ===================================================== */
 
     function showResult(
         question,
@@ -503,10 +438,6 @@ document.addEventListener("DOMContentLoaded", async function () {
             points;
 
 
-        /*
-         * 2 POINTS
-         */
-
         if (points === 2) {
 
             resultIcon.textContent =
@@ -520,14 +451,8 @@ document.addEventListener("DOMContentLoaded", async function () {
             resultMessage.textContent =
                 "Tu as trouvé l'artiste et le titre !";
 
-        }
 
-
-        /*
-         * 1 POINT
-         */
-
-        else if (points === 1) {
+        } else if (points === 1) {
 
             resultIcon.textContent =
                 "👍";
@@ -540,14 +465,8 @@ document.addEventListener("DOMContentLoaded", async function () {
             resultMessage.textContent =
                 "Tu as trouvé une des deux réponses.";
 
-        }
 
-
-        /*
-         * 0 POINT
-         */
-
-        else {
+        } else {
 
             resultIcon.textContent =
                 "❌";
@@ -559,17 +478,12 @@ document.addEventListener("DOMContentLoaded", async function () {
 
             resultMessage.textContent =
                 "Tu feras mieux à la prochaine.";
-
         }
 
 
         resultCard.style.display =
             "block";
 
-
-        /*
-         * Dernière question
-         */
 
         if (
             currentQuestionIndex >=
@@ -579,23 +493,17 @@ document.addEventListener("DOMContentLoaded", async function () {
             nextQuestionButton.textContent =
                 "Voir mon score 🏆";
 
-        }
-
-        else {
+        } else {
 
             nextQuestionButton.textContent =
                 "Question suivante →";
-
         }
-
     }
 
 
-    /*
-     * ========================================
-     * QUESTION SUIVANTE
-     * ========================================
-     */
+    /* =====================================================
+       QUESTION SUIVANTE
+       ===================================================== */
 
     function nextQuestion() {
 
@@ -610,20 +518,16 @@ document.addEventListener("DOMContentLoaded", async function () {
             endGame();
 
             return;
-
         }
 
 
         displayQuestion();
-
     }
 
 
-    /*
-     * ========================================
-     * FIN DE PARTIE
-     * ========================================
-     */
+    /* =====================================================
+       FIN DE PARTIE
+       ===================================================== */
 
     function endGame() {
 
@@ -644,7 +548,7 @@ document.addEventListener("DOMContentLoaded", async function () {
 
 
         resultMessage.textContent =
-            "Voici ton score final :";
+            "Voici ton score final:";
 
 
         correctArtist.parentElement
@@ -675,7 +579,6 @@ document.addEventListener("DOMContentLoaded", async function () {
                     2
                 ) +
                 "</span>";
-
         }
 
 
@@ -688,28 +591,23 @@ document.addEventListener("DOMContentLoaded", async function () {
 
                 window.location.href =
                     "jeu.html";
-
             };
 
 
         currentQuestionElement.textContent =
             gameQuestions.length;
-
     }
 
 
-    /*
-     * ========================================
-     * BOUTONS
-     * ========================================
-     */
+    /* =====================================================
+       ÉVÉNEMENTS
+       ===================================================== */
 
     validateButton.addEventListener(
         "click",
         function () {
 
             checkAnswer();
-
         }
     );
 
@@ -719,16 +617,9 @@ document.addEventListener("DOMContentLoaded", async function () {
         function () {
 
             nextQuestion();
-
         }
     );
 
-
-    /*
-     * ========================================
-     * TOUCHE ENTRÉE
-     * ========================================
-     */
 
     artistInput.addEventListener(
         "keydown",
@@ -740,9 +631,7 @@ document.addEventListener("DOMContentLoaded", async function () {
             ) {
 
                 checkAnswer();
-
             }
-
         }
     );
 
@@ -757,18 +646,14 @@ document.addEventListener("DOMContentLoaded", async function () {
             ) {
 
                 checkAnswer();
-
             }
-
         }
     );
 
 
-    /*
-     * ========================================
-     * DÉMARRAGE
-     * ========================================
-     */
+    /* =====================================================
+       LANCEMENT
+       ===================================================== */
 
     const success =
         await loadQuestions();
@@ -779,7 +664,7 @@ document.addEventListener("DOMContentLoaded", async function () {
         displayQuestion();
 
         updateScore();
-
     }
 
 });
+```
