@@ -3,6 +3,7 @@ export default {
 
         const url = new URL(request.url);
 
+
         /*
          * ================================
          * TEST
@@ -47,7 +48,7 @@ export default {
 
         /*
          * ================================
-         * QUESTIONS
+         * GÉNÉRATION DES QUESTIONS
          * ================================
          */
 
@@ -196,6 +197,7 @@ async function searchMusicBrainz(url) {
         );
 
     }
+
 }
 
 
@@ -238,7 +240,9 @@ async function getLyrics(url) {
 
 
         const response =
-            await fetch(lrclibUrl);
+            await fetch(
+                lrclibUrl
+            );
 
 
         if (!response.ok) {
@@ -247,7 +251,9 @@ async function getLyrics(url) {
                 {
                     success: false,
                     error:
-                        "Paroles introuvables."
+                        "Paroles introuvables.",
+                    status:
+                        response.status
                 },
                 404
             );
@@ -308,6 +314,7 @@ async function getLyrics(url) {
         );
 
     }
+
 }
 
 
@@ -320,16 +327,13 @@ async function getLyrics(url) {
 async function generateQuestions(url) {
 
     const genre =
-        url.searchParams.get("genre") ||
-        "all";
+        url.searchParams.get("genre") || "all";
 
     const era =
-        url.searchParams.get("era") ||
-        "all";
+        url.searchParams.get("era") || "all";
 
     const difficulty =
-        url.searchParams.get("difficulty") ||
-        "all";
+        url.searchParams.get("difficulty") || "all";
 
     const requestedNumber =
         Number(
@@ -343,18 +347,25 @@ async function generateQuestions(url) {
 
     const number =
         Math.min(
-            Math.max(requestedNumber, 1),
+            Math.max(
+                requestedNumber,
+                1
+            ),
             30
         );
 
 
     /*
-     * Pour le premier test,
-     * on utilise une petite sélection
-     * de recherches MusicBrainz.
+     * Artistes utilisés pour la génération.
+     *
+     * Cette liste est temporaire.
+     * Elle sera remplacée par un système
+     * réellement basé sur les filtres
+     * musicaux.
      */
 
-    const searches = [
+    const artists = [
+
         "Stromae",
         "Indochine",
         "Mylène Farmer",
@@ -364,36 +375,63 @@ async function generateQuestions(url) {
         "Michael Jackson",
         "Eminem",
         "The Weeknd",
-        "Coldplay"
+        "Coldplay",
+        "Ed Sheeran",
+        "Adele",
+        "Lady Gaga",
+        "Rihanna",
+        "Bruno Mars",
+        "David Bowie",
+        "ABBA",
+        "Depeche Mode",
+        "Oasis",
+        "Nirvana"
+
     ];
 
 
     /*
-     * Mélange aléatoire
+     * Mélange des artistes
      */
 
-    const shuffled =
-        searches
-            .sort(
-                () => Math.random() - 0.5
-            );
+    const shuffledArtists =
+        [...artists].sort(
+            () => Math.random() - 0.5
+        );
 
 
     const questions = [];
 
 
+    /*
+     * Parcours des artistes
+     */
+
     for (
-        const artist of shuffled
+        const artist of shuffledArtists
     ) {
+
+        /*
+         * On arrête dès que le nombre
+         * demandé est atteint.
+         */
 
         if (
             questions.length >= number
         ) {
+
             break;
+
         }
 
 
         try {
+
+            /*
+             * ================================
+             * RECHERCHE MUSICBRAINZ
+             * ================================
+             */
 
             const searchUrl =
                 "https://musicbrainz.org/ws/2/recording/" +
@@ -402,7 +440,7 @@ async function generateQuestions(url) {
                     `artist:"${artist}"`
                 ) +
                 "&fmt=json" +
-                "&limit=10";
+                "&limit=25";
 
 
             const response =
@@ -418,7 +456,9 @@ async function generateQuestions(url) {
 
 
             if (!response.ok) {
+
                 continue;
+
             }
 
 
@@ -433,110 +473,196 @@ async function generateQuestions(url) {
             if (
                 recordings.length === 0
             ) {
+
                 continue;
-            }
 
-
-            const recording =
-                recordings[
-                    Math.floor(
-                        Math.random() *
-                        recordings.length
-                    )
-                ];
-
-
-            const recordingArtist =
-                recording[
-                    "artist-credit"
-                ]?.[0]?.name;
-
-
-            if (
-                !recordingArtist ||
-                !recording.title
-            ) {
-                continue;
             }
 
 
             /*
-             * Recherche des paroles
+             * Mélange des chansons
              */
 
-            const lyricsUrl =
-                "https://lrclib.net/api/get" +
-                "?artist_name=" +
-                encodeURIComponent(
-                    recordingArtist
-                ) +
-                "&track_name=" +
-                encodeURIComponent(
-                    recording.title
+            const shuffledRecordings =
+                [...recordings].sort(
+                    () => Math.random() - 0.5
                 );
-
-
-            const lyricsResponse =
-                await fetch(
-                    lyricsUrl
-                );
-
-
-            if (
-                !lyricsResponse.ok
-            ) {
-                continue;
-            }
-
-
-            const lyricsData =
-                await lyricsResponse.json();
-
-
-            if (
-                !lyricsData.plainLyrics
-            ) {
-                continue;
-            }
 
 
             /*
-             * On extrait quelques lignes
-             * des paroles.
+             * ================================
+             * RECHERCHE DES PAROLES
+             * ================================
              */
 
-            const lyrics =
-                createLyricsExcerpt(
-                    lyricsData.plainLyrics
-                );
+            for (
+                const recording
+                of shuffledRecordings
+            ) {
+
+                /*
+                 * Nombre de questions atteint
+                 */
+
+                if (
+                    questions.length >= number
+                ) {
+
+                    break;
+
+                }
 
 
-            if (!lyrics) {
-                continue;
-            }
-
-
-            questions.push({
-
-                artist:
-                    recordingArtist,
-
-                title:
-                    recording.title,
-
-                lyrics:
-
-                    lyrics,
-
-                difficulty:
-                    difficulty,
-
-                year:
+                const recordingArtist =
                     recording[
-                        "first-release-date"
-                    ] || null
+                        "artist-credit"
+                    ]?.[0]?.name;
 
-            });
+
+                const recordingTitle =
+                    recording.title;
+
+
+                /*
+                 * Enregistrement invalide
+                 */
+
+                if (
+                    !recordingArtist ||
+                    !recordingTitle
+                ) {
+
+                    continue;
+
+                }
+
+
+                /*
+                 * Recherche LRCLIB
+                 */
+
+                const lyricsUrl =
+                    "https://lrclib.net/api/get" +
+                    "?artist_name=" +
+                    encodeURIComponent(
+                        recordingArtist
+                    ) +
+                    "&track_name=" +
+                    encodeURIComponent(
+                        recordingTitle
+                    );
+
+
+                const lyricsResponse =
+                    await fetch(
+                        lyricsUrl
+                    );
+
+
+                /*
+                 * Pas de paroles
+                 */
+
+                if (
+                    !lyricsResponse.ok
+                ) {
+
+                    continue;
+
+                }
+
+
+                const lyricsData =
+                    await lyricsResponse.json();
+
+
+                /*
+                 * Pas de paroles exploitables
+                 */
+
+                if (
+                    !lyricsData.plainLyrics
+                ) {
+
+                    continue;
+
+                }
+
+
+                /*
+                 * Création de l'extrait
+                 */
+
+                const lyrics =
+                    createLyricsExcerpt(
+                        lyricsData.plainLyrics
+                    );
+
+
+                if (!lyrics) {
+
+                    continue;
+
+                }
+
+
+                /*
+                 * Éviter les doublons
+                 */
+
+                const duplicate =
+                    questions.some(
+                        question =>
+
+                            question.artist
+                                .toLowerCase() ===
+                            recordingArtist
+                                .toLowerCase()
+
+                            &&
+
+                            question.title
+                                .toLowerCase() ===
+                            recordingTitle
+                                .toLowerCase()
+                    );
+
+
+                if (duplicate) {
+
+                    continue;
+
+                }
+
+
+                /*
+                 * ================================
+                 * AJOUT DE LA QUESTION
+                 * ================================
+                 */
+
+                questions.push({
+
+                    artist:
+                        recordingArtist,
+
+                    title:
+                        recordingTitle,
+
+                    lyrics:
+                        lyrics,
+
+                    difficulty:
+                        difficulty,
+
+                    year:
+                        recording[
+                            "first-release-date"
+                        ] || null
+
+                });
+
+            }
 
 
         } catch (error) {
@@ -551,14 +677,22 @@ async function generateQuestions(url) {
     }
 
 
+    /*
+     * ================================
+     * RÉSULTAT
+     * ================================
+     */
+
     return jsonResponse({
 
         success: true,
 
         filters: {
+
             genre,
             era,
             difficulty
+
         },
 
         questions
@@ -578,6 +712,10 @@ function createLyricsExcerpt(
     lyrics
 ) {
 
+    /*
+     * Découpage des paroles
+     */
+
     const lines =
         lyrics
             .split("\n")
@@ -591,16 +729,21 @@ function createLyricsExcerpt(
             );
 
 
+    /*
+     * Pas assez de contenu
+     */
+
     if (
         lines.length < 3
     ) {
+
         return null;
+
     }
 
 
     /*
-     * On choisit un passage
-     * de 2 à 4 lignes.
+     * Choisir un point de départ
      */
 
     const maxStart =
@@ -616,6 +759,10 @@ function createLyricsExcerpt(
             (maxStart + 1)
         );
 
+
+    /*
+     * Récupérer jusqu'à 4 lignes
+     */
 
     const selected =
         lines.slice(
@@ -641,22 +788,29 @@ function jsonResponse(
 ) {
 
     return new Response(
+
         JSON.stringify(
             data,
             null,
             2
         ),
+
         {
+
             status,
 
             headers: {
+
                 "Content-Type":
                     "application/json; charset=UTF-8",
 
                 "Cache-Control":
                     "no-store"
+
             }
+
         }
+
     );
 
 }
