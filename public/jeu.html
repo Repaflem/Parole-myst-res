@@ -1,60 +1,58 @@
+```html
 <!DOCTYPE html>
 <html lang="fr">
-
 <head>
-
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0"
-    >
+    <title>Paroles Mystères - Configuration</title>
 
-    <title>Nouvelle partie · Paroles Mystères</title>
-
-    <link
-        rel="stylesheet"
-        href="css/style.css"
-    >
-
+    <link rel="stylesheet" href="css/style.css">
 </head>
 
 <body>
 
-    <main class="container">
-
-        <!-- LOGO -->
+    <main class="config-container">
 
         <div class="logo">
             🎵
         </div>
 
-        <h1>
-            Nouvelle partie
-        </h1>
+        <h1>Paroles Mystères</h1>
 
         <p class="subtitle">
-            Configure ta partie avant de commencer
+            Configure ta partie
         </p>
 
-        <!-- CONFIGURATION -->
+        <section class="config-card">
 
-        <section class="card">
+            <h2>🎮 Paramètres de la partie</h2>
 
-            <h2>
-                🎮 Configuration
-            </h2>
+            <!-- LANGUE -->
+            <div class="form-group">
+                <label for="language">
+                    🌐 Langue des chansons
+                </label>
 
-            <p>
-                Choisis les paramètres de ta partie.
-            </p>
+                <select id="language">
+                    <option value="both">
+                        🇫🇷 Français + 🇬🇧 Anglais
+                    </option>
+
+                    <option value="fr">
+                        🇫🇷 Français uniquement
+                    </option>
+
+                    <option value="en">
+                        🇬🇧 Anglais uniquement
+                    </option>
+                </select>
+            </div>
 
             <!-- STYLE MUSICAL -->
-
-            <div class="game-option">
-
+            <div class="form-group">
                 <label for="genre">
-                    🎼 Style musical
+                    🎵 Style musical
                 </label>
 
                 <select id="genre">
@@ -63,46 +61,43 @@
                         Tous les styles
                     </option>
 
-                    <option value="francais">
-                        Chanson française
+                    <option value="chanson-francaise">
+                        🎤 Chanson française
                     </option>
 
                     <option value="pop">
-                        Pop
+                        🎧 Pop
                     </option>
 
                     <option value="rock">
-                        Rock
+                        🎸 Rock
                     </option>
 
                     <option value="rap">
-                        Rap / Hip-Hop
+                        🎤 Rap / Hip-hop
                     </option>
 
-                    <option value="disco">
-                        Disco / Funk
+                    <option value="disco-funk">
+                        🪩 Disco / Funk
                     </option>
 
                     <option value="electro">
-                        Électro
+                        ⚡ Électro
                     </option>
 
                     <option value="metal">
-                        Métal
+                        🤘 Metal
                     </option>
 
                     <option value="international">
-                        International
+                        🌎 International
                     </option>
 
                 </select>
-
             </div>
 
             <!-- ÉPOQUE -->
-
-            <div class="game-option">
-
+            <div class="form-group">
                 <label for="era">
                     📅 Époque
                 </label>
@@ -113,40 +108,37 @@
                         Toutes les époques
                     </option>
 
-                    <option value="1960">
+                    <option value="1960-1979">
                         1960 – 1979
                     </option>
 
-                    <option value="1980">
+                    <option value="1980-1989">
                         1980 – 1989
                     </option>
 
-                    <option value="1990">
+                    <option value="1990-1999">
                         1990 – 1999
                     </option>
 
-                    <option value="2000">
+                    <option value="2000-2009">
                         2000 – 2009
                     </option>
 
-                    <option value="2010">
+                    <option value="2010-2019">
                         2010 – 2019
                     </option>
 
-                    <option value="2020">
+                    <option value="2020-2026">
                         2020 – 2026
                     </option>
 
                 </select>
-
             </div>
 
             <!-- DIFFICULTÉ -->
-
-            <div class="game-option">
-
+            <div class="form-group">
                 <label for="difficulty">
-                    🧠 Difficulté
+                    🎯 Difficulté
                 </label>
 
                 <select id="difficulty">
@@ -156,84 +148,77 @@
                     </option>
 
                     <option value="easy">
-                        Facile
+                        🟢 Facile
                     </option>
 
                     <option value="medium">
-                        Moyen
+                        🟠 Moyenne
                     </option>
 
                     <option value="hard">
-                        Difficile
+                        🔴 Difficile
                     </option>
 
                 </select>
-
             </div>
 
             <!-- NOMBRE DE QUESTIONS -->
-
-            <div class="game-option">
-
+            <div class="form-group">
                 <label for="number">
-                    🔢 Nombre de chansons
+                    ❓ Nombre de questions
                 </label>
 
                 <select id="number">
 
                     <option value="5">
-                        5 chansons
+                        5 questions
                     </option>
 
                     <option value="10" selected>
-                        10 chansons
+                        10 questions
                     </option>
 
                     <option value="15">
-                        15 chansons
+                        15 questions
                     </option>
 
                     <option value="20">
-                        20 chansons
+                        20 questions
                     </option>
 
                     <option value="30">
-                        30 chansons
+                        30 questions
                     </option>
 
                 </select>
-
             </div>
 
             <!-- BOUTON -->
-
-            <a
-                href="#"
-                class="play-button game-start-button"
+            <button
+                type="button"
+                class="game-start-button"
+                id="start-game"
             >
-                🚀 Commencer la partie
-            </a>
+                🚀 Lancer la partie
+            </button>
 
         </section>
 
-        <!-- RETOUR -->
-
-        <div class="back-link">
-
-            <a href="index.html">
-                ← Retour à l'accueil
-            </a>
-
-        </div>
-
-        <footer class="footer">
-            Paroles Mystères · Jeu musical
-        </footer>
+        <a
+            href="index.html"
+            class="back-link"
+        >
+            ← Retour à l'accueil
+        </a>
 
     </main>
+
+    <footer>
+        Paroles Mystères · Jeu musical
+    </footer>
 
     <script src="js/jeu.js"></script>
 
 </body>
-
 </html>
+```
