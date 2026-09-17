@@ -1,5 +1,5 @@
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const url = new URL(request.url);
 
     /*
@@ -401,6 +401,35 @@ export default {
     async function searchArtistRecordings(
       artistName
     ) {
+      /*
+       * ----------------------------------------------------------
+       * CACHE
+       * ----------------------------------------------------------
+       *
+       * On met en cache les recordings par artiste pendant 6h.
+       * Cela évite de re-questionner MusicBrainz (et d'attendre
+       * la pause de rate-limit) pour un artiste déjà interrogé
+       * récemment par n'importe quel joueur.
+       */
+
+      const cache = caches.default;
+
+      const cacheKey = new Request(
+        "https://cache.parolesmysteres.internal/mb/" +
+          encodeURIComponent(artistName)
+      );
+
+      const cachedResponse =
+        await cache.match(cacheKey);
+
+      if (cachedResponse) {
+        return {
+          recordings:
+            await cachedResponse.json(),
+          fromCache: true
+        };
+      }
+
       const cleanArtist =
         artistName.replace(/"/g, "");
 
@@ -439,16 +468,40 @@ export default {
       const data =
         await response.json();
 
-      if (
-        !data ||
-        !Array.isArray(
+      const recordings =
+        data &&
+        Array.isArray(
           data.recordings
         )
-      ) {
-        return [];
-      }
+          ? data.recordings
+          : [];
 
-      return data.recordings;
+      /*
+       * On écrit dans le cache en arrière-plan
+       * (n'attend pas, ne ralentit pas la réponse).
+       */
+
+      ctx.waitUntil(
+        cache.put(
+          cacheKey,
+          new Response(
+            JSON.stringify(
+              recordings
+            ),
+            {
+              headers: {
+                "Cache-Control":
+                  "max-age=21600"
+              }
+            }
+          )
+        )
+      );
+
+      return {
+        recordings,
+        fromCache: false
+      };
     }
 
     function recordingToCandidate(
@@ -798,7 +851,10 @@ export default {
         of selectedArtists
       ) {
         try {
-          const recordings =
+          const {
+            recordings,
+            fromCache
+          } =
             await searchArtistRecordings(
               artistName
             );
@@ -846,10 +902,14 @@ export default {
 
           /*
            * MusicBrainz demande environ
-           * 1 requête/seconde.
+           * 1 requête/seconde -- mais seulement
+           * si on a réellement interrogé l'API
+           * (pas nécessaire pour un résultat en cache).
            */
 
-          await sleep(1200);
+          if (!fromCache) {
+            await sleep(1200);
+          }
         } catch (error) {
           if (
             diagnostics.errors.length <
@@ -968,9 +1028,59 @@ export default {
                     return null;
                   }
 
+                  const cleaned =
+                    cleanLyrics(
+                      lyrics
+                    );
+
+                  if (
+                    !looksFrench(
+                      cleaned
+                    )
+                  ) {
+                    return {
+                      candidate,
+                      cleaned,
+                      isFrench: false,
+                      listeners: null
+                    };
+                  }
+
+                  /*
+                   * ----------------------------------------------
+                   * LAST.FM
+                   * ----------------------------------------------
+                   *
+                   * Fait en parallèle avec les autres
+                   * candidats du batch, au lieu d'attendre
+                   * chaque appel un par un.
+                   */
+
+                  let listeners = null;
+
+                  if (
+                    difficulty !== "all" &&
+                    LASTFM_API_KEY
+                  ) {
+                    try {
+                      listeners =
+                        await getLastFmListeners(
+                          candidate.artist,
+                          candidate.title
+                        );
+                    } catch {
+                      listeners = null;
+                    }
+                  }
+
                   return {
                     candidate,
-                    lyrics
+                    cleaned,
+                    isFrench: true,
+                    listeners,
+                    lastFmQueried:
+                      difficulty !== "all" &&
+                      Boolean(LASTFM_API_KEY)
                   };
                 } catch {
                   return null;
@@ -993,52 +1103,24 @@ export default {
 
           diagnostics.lyricsFound++;
 
-          const cleaned =
-            cleanLyrics(
-              result.lyrics
-            );
-
-          if (
-            !looksFrench(cleaned)
-          ) {
+          if (!result.isFrench) {
             diagnostics.lyricsNotFrench++;
             continue;
           }
 
           diagnostics.lyricsFrench++;
 
-          /*
-           * ------------------------------------------------------
-           * LAST.FM
-           * ------------------------------------------------------
-           */
+          const cleaned =
+            result.cleaned;
 
-          let listeners = null;
+          const listeners =
+            result.listeners;
 
-          /*
-           * Pour "all", inutile de contacter Last.fm.
-           */
-
-          if (
-            difficulty !== "all" &&
-            LASTFM_API_KEY
-          ) {
+          if (result.lastFmQueried) {
             diagnostics.lastFmRequests++;
 
-            try {
-              listeners =
-                await getLastFmListeners(
-                  result.candidate.artist,
-                  result.candidate.title
-                );
-
-              if (
-                listeners !== null
-              ) {
-                diagnostics.lastFmFound++;
-              }
-            } catch {
-              listeners = null;
+            if (listeners !== null) {
+              diagnostics.lastFmFound++;
             }
           }
 
