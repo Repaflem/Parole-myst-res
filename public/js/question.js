@@ -112,13 +112,15 @@ document.addEventListener("DOMContentLoaded", async function () {
 
     /*
      * Paramètres par défaut.
+     *
+     * Le jeu est désormais exclusivement
+     * francophone : aucun paramètre
+     * de langue n'est nécessaire.
      */
 
     if (!settings) {
 
         settings = {
-
-            language: "both",
 
             genre: "all",
 
@@ -128,13 +130,6 @@ document.addEventListener("DOMContentLoaded", async function () {
 
             number: 10
         };
-    }
-
-
-    if (!settings.language) {
-
-        settings.language =
-            "both";
     }
 
 
@@ -226,11 +221,16 @@ document.addEventListener("DOMContentLoaded", async function () {
 
         try {
 
+            /*
+             * Paramètres envoyés à l'API.
+             *
+             * La langue n'est plus envoyée :
+             * le Worker ne propose désormais
+             * que des chansons francophones.
+             */
+
             const params =
                 new URLSearchParams({
-
-                    language:
-                        settings.language,
 
                     genre:
                         settings.genre,
@@ -653,6 +653,12 @@ document.addEventListener("DOMContentLoaded", async function () {
         nextQuestionButton.textContent =
             "Rejouer 🔄";
 
+
+        /*
+         * On remplace le comportement
+         * du bouton pour recommencer
+         * une nouvelle partie.
+         */
 
         nextQuestionButton.onclick =
             function () {
