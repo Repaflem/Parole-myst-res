@@ -113,9 +113,8 @@ document.addEventListener("DOMContentLoaded", async function () {
     /*
      * Paramètres par défaut.
      *
-     * Le jeu est désormais exclusivement
-     * francophone : aucun paramètre
-     * de langue n'est nécessaire.
+     * Le jeu est exclusivement
+     * francophone.
      */
 
     if (!settings) {
@@ -135,29 +134,25 @@ document.addEventListener("DOMContentLoaded", async function () {
 
     if (!settings.genre) {
 
-        settings.genre =
-            "all";
+        settings.genre = "all";
     }
 
 
     if (!settings.era) {
 
-        settings.era =
-            "all";
+        settings.era = "all";
     }
 
 
     if (!settings.difficulty) {
 
-        settings.difficulty =
-            "all";
+        settings.difficulty = "all";
     }
 
 
     if (!settings.number) {
 
-        settings.number =
-            10;
+        settings.number = 10;
     }
 
 
@@ -165,14 +160,11 @@ document.addEventListener("DOMContentLoaded", async function () {
      * Variables de la partie.
      */
 
-    let currentQuestionIndex =
-        0;
+    let currentQuestionIndex = 0;
 
-    let score =
-        0;
+    let score = 0;
 
-    let gameQuestions =
-        [];
+    let gameQuestions = [];
 
 
     /*
@@ -215,35 +207,37 @@ document.addEventListener("DOMContentLoaded", async function () {
         lyricsElement.textContent =
             "🎵 Recherche des chansons...";
 
-        validateButton.disabled =
-            true;
+        validateButton.disabled = true;
 
 
         try {
 
             /*
-             * Paramètres envoyés à l'API.
-             *
-             * La langue n'est plus envoyée :
-             * le Worker ne propose désormais
-             * que des chansons francophones.
+             * Construction des paramètres.
              */
 
             const params =
-                new URLSearchParams({
+                new URLSearchParams();
 
-                    genre:
-                        settings.genre,
+            params.set(
+                "genre",
+                settings.genre
+            );
 
-                    era:
-                        settings.era,
+            params.set(
+                "era",
+                settings.era
+            );
 
-                    difficulty:
-                        settings.difficulty,
+            params.set(
+                "difficulty",
+                settings.difficulty
+            );
 
-                    number:
-                        settings.number
-                });
+            params.set(
+                "number",
+                String(settings.number)
+            );
 
 
             const url =
@@ -252,13 +246,32 @@ document.addEventListener("DOMContentLoaded", async function () {
 
 
             console.log(
-                "Paroles Mystères : chargement des questions :",
+                "Paroles Mystères : requête API :",
                 url
             );
 
 
+            /*
+             * Appel de l'API.
+             */
+
             const response =
-                await fetch(url);
+                await fetch(
+                    url,
+                    {
+                        method: "GET",
+                        cache: "no-store",
+                        headers: {
+                            "Accept": "application/json"
+                        }
+                    }
+                );
+
+
+            console.log(
+                "Paroles Mystères : statut HTTP :",
+                response.status
+            );
 
 
             if (!response.ok) {
@@ -270,18 +283,86 @@ document.addEventListener("DOMContentLoaded", async function () {
             }
 
 
-            const data =
-                await response.json();
+            /*
+             * On récupère d'abord la réponse
+             * sous forme de texte.
+             *
+             * Cela permet d'éviter les problèmes
+             * si Cloudflare renvoie exceptionnellement
+             * autre chose qu'un JSON.
+             */
+
+            const responseText =
+                await response.text();
 
 
             console.log(
-                "Paroles Mystères : questions reçues :",
+                "Paroles Mystères : réponse API :",
+                responseText
+            );
+
+
+            if (!responseText.trim()) {
+
+                throw new Error(
+                    "L'API a renvoyé une réponse vide."
+                );
+            }
+
+
+            /*
+             * Conversion en JSON.
+             */
+
+            let data;
+
+            try {
+
+                data =
+                    JSON.parse(
+                        responseText
+                    );
+
+            } catch (jsonError) {
+
+                console.error(
+                    "Réponse reçue mais JSON invalide :",
+                    responseText
+                );
+
+                throw new Error(
+                    "La réponse de l'API n'est pas un JSON valide."
+                );
+            }
+
+
+            console.log(
+                "Paroles Mystères : données reçues :",
                 data
             );
 
 
+            /*
+             * Vérification du statut de l'API.
+             */
+
             if (
-                !data.questions ||
+                data.success !== true
+            ) {
+
+                throw new Error(
+                    data.message ||
+                    "L'API a indiqué une erreur."
+                );
+            }
+
+
+            /*
+             * Vérification de la liste
+             * des questions.
+             */
+
+            if (
                 !Array.isArray(
                     data.questions
                 )
@@ -303,12 +384,27 @@ document.addEventListener("DOMContentLoaded", async function () {
             }
 
 
+            /*
+             * Enregistrement des questions.
+             */
+
             gameQuestions =
                 data.questions;
 
 
+            /*
+             * Mise à jour du compteur.
+             */
+
             totalQuestionsElement.textContent =
                 gameQuestions.length;
+
+
+            console.log(
+                "Paroles Mystères : " +
+                gameQuestions.length +
+                " question(s) chargée(s)."
+            );
 
 
             return true;
@@ -317,7 +413,7 @@ document.addEventListener("DOMContentLoaded", async function () {
         } catch (error) {
 
             console.error(
-                "Erreur lors du chargement des questions :",
+                "Paroles Mystères : erreur lors du chargement des questions :",
                 error
             );
 
@@ -359,11 +455,9 @@ document.addEventListener("DOMContentLoaded", async function () {
             question.lyrics;
 
 
-        artistInput.value =
-            "";
+        artistInput.value = "";
 
-        titleInput.value =
-            "";
+        titleInput.value = "";
 
 
         answerCard.style.display =
@@ -435,14 +529,12 @@ document.addEventListener("DOMContentLoaded", async function () {
             );
 
 
-        let points =
-            0;
+        let points = 0;
 
 
         if (
             playerArtist !== "" &&
-            playerArtist ===
-                expectedArtist
+            playerArtist === expectedArtist
         ) {
 
             points++;
@@ -451,16 +543,14 @@ document.addEventListener("DOMContentLoaded", async function () {
 
         if (
             playerTitle !== "" &&
-            playerTitle ===
-                expectedTitle
+            playerTitle === expectedTitle
         ) {
 
             points++;
         }
 
 
-        score +=
-            points;
+        score += points;
 
 
         updateScore();
@@ -511,7 +601,7 @@ document.addEventListener("DOMContentLoaded", async function () {
                 "Excellent !";
 
             resultMessage.textContent =
-                "Tu as trouvé l'artiste et le titre !";
+                "Tu as trouvé l'artiste et le titre.";
 
         } else if (points === 1) {
 
@@ -653,12 +743,6 @@ document.addEventListener("DOMContentLoaded", async function () {
         nextQuestionButton.textContent =
             "Rejouer 🔄";
 
-
-        /*
-         * On remplace le comportement
-         * du bouton pour recommencer
-         * une nouvelle partie.
-         */
 
         nextQuestionButton.onclick =
             function () {
