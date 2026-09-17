@@ -1058,15 +1058,27 @@ export default {
        * MUSICBRAINZ
        * ----------------------------------------------------------
        *
-       * Seulement 6 artistes sont interrogés.
+       * On interroge davantage d'artistes qu'avant, pour
+       * garantir assez de variété (surtout avec le catalogue
+       * élargi) et assez de morceaux candidats pour atteindre
+       * le nombre de questions demandé même après tous les
+       * filtres (paroles absentes, pas assez françaises, etc.).
        *
-       * Avec la limitation de MusicBrainz,
-       * cela représente environ 6-8 secondes
-       * au lieu d'une longue série de recherches.
+       * Grâce au cache, seuls les artistes non encore en cache
+       * coûtent réellement la pause de rate-limit.
        */
 
+      const targetArtistCount =
+        Math.min(
+          artists.length,
+          Math.max(12, number * 2)
+        );
+
       const selectedArtists =
-        artists.slice(0, 6);
+        artists.slice(
+          0,
+          targetArtistCount
+        );
 
       diagnostics.artistsSelected =
         selectedArtists.length;
@@ -1202,11 +1214,21 @@ export default {
         shuffle(candidates);
 
       /*
-       * On limite le nombre de requêtes LRCLIB.
+       * On limite le nombre de requêtes LRCLIB,
+       * mais on garde une marge confortable au-dessus
+       * du nombre de questions demandé, car beaucoup
+       * de candidats seront rejetés en cours de route
+       * (paroles absentes, pas assez françaises, etc.).
        */
 
       candidates =
-        candidates.slice(0, 24);
+        candidates.slice(
+          0,
+          Math.min(
+            candidates.length,
+            Math.max(40, number * 6)
+          )
+        );
 
       /*
        * ----------------------------------------------------------
@@ -1435,6 +1457,31 @@ export default {
         if (
           questions.length >=
           number
+        ) {
+          return;
+        }
+
+        /*
+         * Limite de variété : 1 seule question par
+         * artiste pour une petite partie (5 questions
+         * ou moins), 2 maximum au-delà.
+         */
+
+        const maxPerArtist =
+          number <= 5 ? 1 : 2;
+
+        const artistKey =
+          normalize(candidate.artist);
+
+        const alreadyUsed =
+          questions.filter(
+            q =>
+              normalize(q.artist) ===
+              artistKey
+          ).length;
+
+        if (
+          alreadyUsed >= maxPerArtist
         ) {
           return;
         }
