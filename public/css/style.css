@@ -13,7 +13,8 @@ body {
 }
 
 .container,
-.game-container {
+.game-container,
+.config-container {
     width: 100%;
     max-width: 700px;
     margin: 0 auto;
@@ -65,6 +66,87 @@ h1 {
 }
 
 /* ============================= */
+/* CARTE CONFIGURATION */
+/* ============================= */
+
+.config-card {
+    background: #17171f;
+    border: 1px solid #292934;
+    border-radius: 24px;
+    padding: 35px;
+    text-align: left;
+}
+
+.config-card h2 {
+    text-align: center;
+    font-size: 24px;
+    margin-bottom: 30px;
+}
+
+/* ============================= */
+/* FORMULAIRE */
+/* ============================= */
+
+.form-group {
+    margin-bottom: 22px;
+}
+
+.form-group label {
+    display: block;
+    font-size: 15px;
+    font-weight: 700;
+    margin-bottom: 8px;
+}
+
+.form-group select {
+    width: 100%;
+    padding: 14px 15px;
+    border: 1px solid #292934;
+    border-radius: 12px;
+    background: #111117;
+    color: #ffffff;
+    font-size: 15px;
+    cursor: pointer;
+    outline: none;
+}
+
+.form-group select:focus {
+    border-color: #555563;
+}
+
+/* ============================= */
+/* ANCIENNES CLASSES CONFIG */
+/* ============================= */
+
+.game-option {
+    text-align: left;
+    margin-bottom: 22px;
+}
+
+.game-option label {
+    display: block;
+    font-size: 15px;
+    font-weight: 700;
+    margin-bottom: 8px;
+}
+
+.game-option select {
+    width: 100%;
+    padding: 14px 15px;
+    border: 1px solid #292934;
+    border-radius: 12px;
+    background: #111117;
+    color: #ffffff;
+    font-size: 15px;
+    cursor: pointer;
+    outline: none;
+}
+
+.game-option select:focus {
+    border-color: #555563;
+}
+
+/* ============================= */
 /* BOUTONS */
 /* ============================= */
 
@@ -87,6 +169,38 @@ h1 {
 .play-button:hover {
     transform: translateY(-2px);
     background: #eeeeee;
+}
+
+.game-start-button {
+    display: block;
+    width: 100%;
+    border: none;
+    border-radius: 14px;
+    padding: 17px 35px;
+    margin-top: 10px;
+    background: #ffffff;
+    color: #111111;
+    font-size: 18px;
+    font-weight: 700;
+    cursor: pointer;
+    text-decoration: none;
+    transition:
+        transform 0.2s,
+        background 0.2s;
+}
+
+.game-start-button:hover {
+    transform: translateY(-2px);
+    background: #eeeeee;
+}
+
+.game-start-button:active {
+    transform: translateY(0);
+}
+
+.game-start-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
 }
 
 /* ============================= */
@@ -129,81 +243,18 @@ h1 {
 }
 
 /* ============================= */
-/* RESPONSIVE MOBILE */
+/* LIEN RETOUR */
 /* ============================= */
-
-@media (max-width: 550px) {
-
-    body {
-        padding: 20px 15px;
-    }
-
-    .card {
-        padding: 25px 18px;
-    }
-
-    .subtitle {
-        font-size: 17px;
-        margin-bottom: 30px;
-    }
-
-    .features {
-        grid-template-columns: 1fr;
-    }
-
-    .feature {
-        padding: 15px;
-    }
-}
-
-/* ============================= */
-/* CONFIGURATION DE LA PARTIE */
-/* ============================= */
-
-.game-option {
-    text-align: left;
-    margin-bottom: 22px;
-}
-
-.game-option label {
-    display: block;
-    font-size: 15px;
-    font-weight: 700;
-    margin-bottom: 8px;
-}
-
-.game-option select {
-    width: 100%;
-    padding: 14px 15px;
-    border: 1px solid #292934;
-    border-radius: 12px;
-    background: #111117;
-    color: #ffffff;
-    font-size: 15px;
-    cursor: pointer;
-    outline: none;
-}
-
-.game-option select:focus {
-    border-color: #555563;
-}
-
-.game-start-button {
-    margin-top: 10px;
-    width: 100%;
-}
 
 .back-link {
+    display: inline-block;
     margin-top: 22px;
-}
-
-.back-link a {
     color: #777784;
     text-decoration: none;
     font-size: 14px;
 }
 
-.back-link a:hover {
+.back-link:hover {
     color: #ffffff;
 }
 
@@ -378,5 +429,37 @@ h1 {
         opacity: 1;
         transform: translateY(0);
     }
+}
 
+/* ============================= */
+/* RESPONSIVE MOBILE */
+/* ============================= */
+
+@media (max-width: 550px) {
+
+    body {
+        padding: 20px 15px;
+    }
+
+    .card,
+    .config-card {
+        padding: 25px 18px;
+    }
+
+    .subtitle {
+        font-size: 17px;
+        margin-bottom: 30px;
+    }
+
+    .features {
+        grid-template-columns: 1fr;
+    }
+
+    .feature {
+        padding: 15px;
+    }
+
+    .config-card h2 {
+        font-size: 21px;
+    }
 }
