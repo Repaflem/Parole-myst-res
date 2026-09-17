@@ -168,38 +168,13 @@ document.addEventListener("DOMContentLoaded", async function () {
 
 
     /*
-     * Normalisation des réponses.
-     */
-
-    function normalizeText(text) {
-
-        return String(text)
-
-            .toLowerCase()
-
-            .normalize("NFD")
-
-            .replace(
-                /[\u0300-\u036f]/g,
-                ""
-            )
-
-            .replace(
-                /[^\w\s]/g,
-                ""
-            )
-
-            .replace(
-                /\s+/g,
-                " "
-            )
-
-            .trim();
-    }
-
-
-    /*
      * Chargement des questions.
+     *
+     * IMPORTANT : les questions reçues ici ne contiennent
+     * jamais l'artiste ni le titre en clair, seulement les
+     * paroles et un jeton chiffré. La bonne réponse n'existe
+     * nulle part côté client tant que le joueur n'a pas validé
+     * sa réponse (voir checkAnswer).
      */
 
     async function loadQuestions() {
@@ -211,10 +186,6 @@ document.addEventListener("DOMContentLoaded", async function () {
 
 
         try {
-
-            /*
-             * Construction des paramètres.
-             */
 
             const params =
                 new URLSearchParams();
@@ -245,16 +216,6 @@ document.addEventListener("DOMContentLoaded", async function () {
                 params.toString();
 
 
-            console.log(
-                "Paroles Mystères : requête API :",
-                url
-            );
-
-
-            /*
-             * Appel de l'API.
-             */
-
             const response =
                 await fetch(
                     url,
@@ -268,12 +229,6 @@ document.addEventListener("DOMContentLoaded", async function () {
                 );
 
 
-            console.log(
-                "Paroles Mystères : statut HTTP :",
-                response.status
-            );
-
-
             if (!response.ok) {
 
                 throw new Error(
@@ -283,23 +238,8 @@ document.addEventListener("DOMContentLoaded", async function () {
             }
 
 
-            /*
-             * On récupère d'abord la réponse
-             * sous forme de texte.
-             *
-             * Cela permet d'éviter les problèmes
-             * si Cloudflare renvoie exceptionnellement
-             * autre chose qu'un JSON.
-             */
-
             const responseText =
                 await response.text();
-
-
-            console.log(
-                "Paroles Mystères : réponse API :",
-                responseText
-            );
 
 
             if (!responseText.trim()) {
@@ -309,10 +249,6 @@ document.addEventListener("DOMContentLoaded", async function () {
                 );
             }
 
-
-            /*
-             * Conversion en JSON.
-             */
 
             let data;
 
@@ -326,8 +262,7 @@ document.addEventListener("DOMContentLoaded", async function () {
             } catch (jsonError) {
 
                 console.error(
-                    "Réponse reçue mais JSON invalide :",
-                    responseText
+                    "Réponse reçue mais JSON invalide."
                 );
 
                 throw new Error(
@@ -335,16 +270,6 @@ document.addEventListener("DOMContentLoaded", async function () {
                 );
             }
 
-
-            console.log(
-                "Paroles Mystères : données reçues :",
-                data
-            );
-
-
-            /*
-             * Vérification du statut de l'API.
-             */
 
             if (
                 data.success !== true
@@ -356,11 +281,6 @@ document.addEventListener("DOMContentLoaded", async function () {
                 );
             }
 
-
-            /*
-             * Vérification de la liste
-             * des questions.
-             */
 
             if (
                 !Array.isArray(
@@ -384,17 +304,9 @@ document.addEventListener("DOMContentLoaded", async function () {
             }
 
 
-            /*
-             * Enregistrement des questions.
-             */
-
             gameQuestions =
                 data.questions;
 
-
-            /*
-             * Mise à jour du compteur.
-             */
 
             totalQuestionsElement.textContent =
                 gameQuestions.length;
@@ -414,7 +326,7 @@ document.addEventListener("DOMContentLoaded", async function () {
 
             console.error(
                 "Paroles Mystères : erreur lors du chargement des questions :",
-                error
+                error.message
             );
 
 
@@ -489,9 +401,14 @@ document.addEventListener("DOMContentLoaded", async function () {
 
     /*
      * Vérification de la réponse.
+     *
+     * La comparaison se fait entièrement côté serveur :
+     * on envoie le jeton de la question + la saisie du
+     * joueur à /api/validate, qui renvoie les points et
+     * la bonne réponse (jamais l'inverse).
      */
 
-    function checkAnswer() {
+    async function checkAnswer() {
 
         const question =
             gameQuestions[
@@ -505,61 +422,81 @@ document.addEventListener("DOMContentLoaded", async function () {
         }
 
 
-        const playerArtist =
-            normalizeText(
-                artistInput.value
+        validateButton.disabled =
+            true;
+
+
+        try {
+
+            const response =
+                await fetch(
+                    "/api/validate",
+                    {
+                        method: "POST",
+                        cache: "no-store",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "Accept": "application/json"
+                        },
+                        body: JSON.stringify({
+                            token: question.token,
+                            artist: artistInput.value,
+                            title: titleInput.value
+                        })
+                    }
+                );
+
+
+            if (!response.ok) {
+
+                throw new Error(
+                    "Erreur HTTP " +
+                    response.status
+                );
+            }
+
+
+            const data =
+                await response.json();
+
+
+            if (
+                data.success !== true
+            ) {
+
+                throw new Error(
+                    data.error ||
+                    "Validation impossible."
+                );
+            }
+
+
+            score += data.points;
+
+
+            updateScore();
+
+
+            showResult(
+                data.points,
+                data.correctArtist,
+                data.correctTitle
             );
 
 
-        const playerTitle =
-            normalizeText(
-                titleInput.value
+        } catch (error) {
+
+            console.error(
+                "Paroles Mystères : erreur lors de la validation :",
+                error.message
             );
 
+            validateButton.disabled =
+                false;
 
-        const expectedArtist =
-            normalizeText(
-                question.artist
-            );
-
-
-        const expectedTitle =
-            normalizeText(
-                question.title
-            );
-
-
-        let points = 0;
-
-
-        if (
-            playerArtist !== "" &&
-            playerArtist === expectedArtist
-        ) {
-
-            points++;
+            lyricsElement.textContent =
+                "❌ Impossible de vérifier ta réponse. Réessaie.";
         }
-
-
-        if (
-            playerTitle !== "" &&
-            playerTitle === expectedTitle
-        ) {
-
-            points++;
-        }
-
-
-        score += points;
-
-
-        updateScore();
-
-
-        showResult(
-            question,
-            points
-        );
     }
 
 
@@ -568,24 +505,21 @@ document.addEventListener("DOMContentLoaded", async function () {
      */
 
     function showResult(
-        question,
-        points
+        points,
+        artistName,
+        titleName
     ) {
-
-        validateButton.disabled =
-            true;
-
 
         answerCard.style.display =
             "none";
 
 
         correctArtist.textContent =
-            question.artist;
+            artistName;
 
 
         correctTitle.textContent =
-            question.title;
+            titleName;
 
 
         pointsEarned.textContent =
