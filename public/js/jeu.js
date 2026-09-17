@@ -1,75 +1,88 @@
-document.addEventListener("DOMContentLoaded", function () {
+```javascript
+document.addEventListener(
+    "DOMContentLoaded",
+    function () {
 
-    const bouton = document.querySelector(
-        ".game-start-button"
-    );
-
-    if (!bouton) {
-
-        console.error(
-            "Bouton de démarrage introuvable."
-        );
-
-        return;
-    }
-
-    bouton.addEventListener(
-        "click",
-        function (event) {
-
-            event.preventDefault();
-
-            // Récupération des choix du joueur
-
-            const genre =
-                document.getElementById(
-                    "genre"
-                ).value;
-
-            const era =
-                document.getElementById(
-                    "era"
-                ).value;
-
-            const difficulty =
-                document.getElementById(
-                    "difficulty"
-                ).value;
-
-            const number =
-                document.getElementById(
-                    "number"
-                ).value;
-
-            // Création de la configuration
-
-            const gameSettings = {
-
-                genre: genre,
-
-                era: era,
-
-                difficulty: difficulty,
-
-                number: Number(number)
-
-            };
-
-            // Sauvegarde
-
-            localStorage.setItem(
-                "parolesMysteresSettings",
-                JSON.stringify(
-                    gameSettings
-                )
+        const languageSelect =
+            document.getElementById(
+                "language"
             );
 
-            // Lancement du quiz
+        const genreSelect =
+            document.getElementById(
+                "genre"
+            );
 
-            window.location.href =
-                "question.html";
+        const eraSelect =
+            document.getElementById(
+                "era"
+            );
 
+        const difficultySelect =
+            document.getElementById(
+                "difficulty"
+            );
+
+        const numberSelect =
+            document.getElementById(
+                "number"
+            );
+
+        const startButton =
+            document.getElementById(
+                "start-game"
+            );
+
+        if (
+            !languageSelect ||
+            !genreSelect ||
+            !eraSelect ||
+            !difficultySelect ||
+            !numberSelect ||
+            !startButton
+        ) {
+            console.error(
+                "Impossible de trouver les éléments de configuration."
+            );
+
+            return;
         }
-    );
 
-});
+        startButton.addEventListener(
+            "click",
+            function () {
+
+                const gameSettings = {
+
+                    language:
+                        languageSelect.value,
+
+                    genre:
+                        genreSelect.value,
+
+                    era:
+                        eraSelect.value,
+
+                    difficulty:
+                        difficultySelect.value,
+
+                    number:
+                        Number(
+                            numberSelect.value
+                        )
+                };
+
+                localStorage.setItem(
+                    "parolesMysteresSettings",
+                    JSON.stringify(
+                        gameSettings
+                    )
+                );
+
+                window.location.href =
+                    "question.html";
+            }
+        );
+    }
+);
+```
