@@ -57,14 +57,6 @@ export default {
  * ============================
  * CACHE LAST.FM
  * ============================
- *
- * Le Worker peut rester actif entre
- * plusieurs requêtes.
- *
- * On conserve donc temporairement
- * les résultats Last.fm afin d'éviter
- * de refaire constamment les mêmes
- * requêtes.
  */
 
 const lastFmCache =
@@ -311,24 +303,6 @@ async function getLyrics(url) {
  * ============================
  * LAST.FM
  * ============================
- *
- * Récupère la popularité réelle
- * du morceau.
- *
- * On utilise en priorité le MBID
- * fourni par MusicBrainz.
- *
- * Last.fm accepte officiellement
- * un MusicBrainz ID pour track.getInfo.
- */
-
-
-/*
- * Seuils de popularité.
- *
- * Ils sont volontairement assez élevés
- * pour que "Facile" signifie réellement
- * "morceau très connu".
  */
 
 const POPULARITY_THRESHOLDS = {
@@ -366,10 +340,6 @@ async function getLastFmTrackInfo(
 
     }
 
-
-    /*
-     * Clé de cache.
-     */
 
     const cacheKey =
         mbid
@@ -416,11 +386,6 @@ async function getLastFmTrackInfo(
 
             });
 
-
-        /*
-         * On privilégie le MBID car il permet
-         * d'identifier précisément le morceau.
-         */
 
         if (mbid) {
 
@@ -478,11 +443,6 @@ async function getLastFmTrackInfo(
         const data =
             await response.json();
 
-
-        /*
-         * Last.fm renvoie parfois
-         * une propriété error.
-         */
 
         if (data.error) {
 
@@ -543,10 +503,6 @@ async function getLastFmTrackInfo(
         };
 
 
-        /*
-         * Mise en cache.
-         */
-
         lastFmCache.set(
             cacheKey,
             {
@@ -586,11 +542,6 @@ function matchesDifficulty(
     lastFmInfo,
     difficulty
 ) {
-
-    /*
-     * "Toutes les difficultés"
-     * ne filtre pas la popularité.
-     */
 
     if (
         difficulty === "all"
@@ -663,11 +614,27 @@ function matchesDifficulty(
  * ============================
  * CATALOGUE DES ARTISTES
  * ============================
+ *
+ * 4 catégories uniquement :
+ *
+ * - Variété française
+ * - Pop / Rock français
+ * - Rap français
+ * - Pop actuelle
+ *
+ * Tous les artistes sont francophones.
  */
 
 const artistGenres = {
 
-    "chanson-francaise": [
+
+    /*
+     * ============================
+     * VARIÉTÉ FRANÇAISE
+     * ============================
+     */
+
+    "variete-francaise": [
 
         "Jean-Jacques Goldman",
         "Mylène Farmer",
@@ -675,7 +642,6 @@ const artistGenres = {
         "Dalida",
         "Slimane",
         "Jacques Brel",
-        "Téléphone",
         "Francis Cabrel",
         "Michel Sardou",
         "France Gall",
@@ -701,40 +667,27 @@ const artistGenres = {
         "Vianney",
         "Amel Bent",
         "Florent Pagny",
-        "Pascal Obispo"
+        "Pascal Obispo",
+        "Francis Lalanne",
+        "Patricia Kaas",
+        "Lara Fabian",
+        "Garou",
+        "Hélène Ségara",
+        "Nolwenn Leroy",
+        "Christophe Maé",
+        "Raphaël",
+        "Grand Corps Malade"
 
     ],
 
 
-    pop: [
+    /*
+     * ============================
+     * POP / ROCK FRANÇAIS
+     * ============================
+     */
 
-        "Mylène Farmer",
-        "Jean-Jacques Goldman",
-        "France Gall",
-        "Calogero",
-        "Zaz",
-        "Vianney",
-        "Taylor Swift",
-        "Lady Gaga",
-        "Katy Perry",
-        "Adele",
-        "Bruno Mars",
-        "Ed Sheeran",
-        "Justin Timberlake",
-        "Michael Jackson",
-        "Madonna",
-        "Britney Spears",
-        "Rihanna",
-        "Beyoncé",
-        "The Weeknd",
-        "Dua Lipa",
-        "Harry Styles",
-        "Billie Eilish"
-
-    ],
-
-
-    rock: [
+    "pop-rock-francais": [
 
         "Téléphone",
         "Noir Désir",
@@ -742,28 +695,37 @@ const artistGenres = {
         "Trust",
         "Eiffel",
         "Louise Attaque",
-        "Queen",
-        "The Beatles",
-        "The Rolling Stones",
-        "Nirvana",
-        "AC/DC",
-        "Guns N' Roses",
-        "Metallica",
-        "U2",
-        "Coldplay",
-        "The Police",
-        "Red Hot Chili Peppers",
-        "Linkin Park",
-        "Foo Fighters",
-        "Green Day"
+        "Kyo",
+        "Superbus",
+        "BB Brunes",
+        "Skip The Use",
+        "Saez",
+        "Matmatah",
+        "Mickey 3D",
+        "Dionysos",
+        "Shaka Ponk",
+        "Mademoiselle K",
+        "Les Rita Mitsouko",
+        "Les Innocents",
+        "Déportivo",
+        "Luke",
+        "Gaëtan Roussel",
+        "Benjamin Biolay",
+        "Louane"
 
     ],
 
 
-    rap: [
+    /*
+     * ============================
+     * RAP FRANÇAIS
+     * ============================
+     */
+
+    "rap-francais": [
 
         "IAM",
-        "NTM",
+        "Suprême NTM",
         "MC Solaar",
         "Orelsan",
         "Stromae",
@@ -775,91 +737,71 @@ const artistGenres = {
         "Damso",
         "Jul",
         "Ninho",
-        "Eminem",
-        "Dr. Dre",
-        "Snoop Dogg",
-        "Kendrick Lamar",
-        "Jay-Z",
-        "50 Cent",
-        "Tupac"
+        "SCH",
+        "Vald",
+        "Lomepal",
+        "Gims",
+        "Black M",
+        "Kaaris",
+        "Niska",
+        "Rohff",
+        "Oxmo Puccino",
+        "Disiz",
+        "Sniper",
+        "Sexion d'Assaut",
+        "113",
+        "Fonky Family",
+        "Doc Gynéco",
+        "Kery James",
+        "La Fouine",
+        "Alonzo",
+        "Heuss l'Enfoiré",
+        "PLK",
+        "Tiakola",
+        "Hatik",
+        "Dinos",
+        "Laylow",
+        "Werenoi"
 
     ],
 
 
-    "disco-funk": [
+    /*
+     * ============================
+     * POP ACTUELLE
+     * ============================
+     */
 
-        "Earth, Wind & Fire",
-        "ABBA",
-        "Bee Gees",
-        "Boney M.",
-        "Donna Summer",
-        "Chic",
-        "Kool & The Gang",
-        "Michael Jackson",
-        "Prince",
-        "James Brown",
-        "Stevie Wonder",
-        "KC and the Sunshine Band"
+    "pop-actuelle": [
 
-    ],
-
-
-    electro: [
-
-        "Daft Punk",
-        "Justice",
-        "David Guetta",
-        "Martin Solveig",
-        "Stromae",
-        "The Chemical Brothers",
-        "The Prodigy",
-        "Calvin Harris",
-        "Avicii",
-        "Kavinsky",
-        "Deadmau5"
-
-    ],
-
-
-    metal: [
-
-        "Metallica",
-        "Iron Maiden",
-        "Black Sabbath",
-        "Judas Priest",
-        "Slipknot",
-        "Rammstein",
-        "System of a Down",
-        "Megadeth",
-        "Pantera",
-        "Linkin Park",
-        "Nightwish"
-
-    ],
-
-
-    international: [
-
-        "The Beatles",
-        "Queen",
-        "Michael Jackson",
-        "Madonna",
-        "ABBA",
-        "Nirvana",
-        "Metallica",
-        "Eminem",
-        "Rihanna",
-        "Beyoncé",
-        "Taylor Swift",
-        "Adele",
-        "Bruno Mars",
-        "The Weeknd",
-        "Ed Sheeran",
-        "Lady Gaga",
-        "Coldplay",
-        "AC/DC",
-        "U2",
-        "Prince"
+        "Aya Nakamura",
+        "Angèle",
+        "Clara Luciani",
+        "Juliette Armanet",
+        "Adèle Castillon",
+        "Hoshi",
+        "Pomme",
+        "Eddy de Pretto",
+        "Pierre de Maere",
+        "Vitaa",
+        "Dadju",
+        "Amir",
+        "Kendji Girac",
+        "Soprano",
+        "Vianney",
+        "Louane",
+        "Claudio Capéo",
+        "Slimane",
+        "Yseult",
+        "Mentissa",
+        "Suzane",
+        "Luidji",
+        "Christophe Willem",
+        "Amel Bent",
+        "Zaho de Sagazan",
+        "Pierre Garnier",
+        "Santa",
+        "Jain"
 
     ]
 
@@ -892,9 +834,13 @@ async function generateQuestions(
     env
 ) {
 
-    const language =
-        url.searchParams.get("language") ||
-        "both";
+    /*
+     * Le paramètre language n'est
+     * volontairement plus utilisé.
+     *
+     * Le jeu est maintenant
+     * exclusivement francophone.
+     */
 
 
     const genre =
@@ -929,7 +875,9 @@ async function generateQuestions(
 
 
     /*
-     * Choix du catalogue.
+     * ============================
+     * CHOIX DU CATALOGUE
+     * ============================
      */
 
     let artists;
@@ -966,8 +914,7 @@ async function generateQuestions(
     /*
      * Pour les difficultés filtrées,
      * nous avons besoin de davantage
-     * de tentatives car beaucoup de titres
-     * peuvent être rejetés par Last.fm.
+     * de tentatives.
      */
 
     const maxAttempts =
@@ -990,8 +937,7 @@ async function generateQuestions(
 
         /*
          * S'il n'y a plus d'artistes,
-         * on recommence avec le catalogue
-         * mélangé.
+         * on recommence avec le catalogue.
          */
 
         if (
@@ -1022,7 +968,9 @@ async function generateQuestions(
         try {
 
             /*
-             * Recherche MusicBrainz.
+             * ============================
+             * MUSICBRAINZ
+             * ============================
              */
 
             const query =
@@ -1159,13 +1107,6 @@ async function generateQuestions(
                  * ============================
                  * LAST.FM
                  * ============================
-                 *
-                 * On vérifie la popularité
-                 * AVANT de récupérer les paroles.
-                 *
-                 * Cela évite de demander des paroles
-                 * pour des morceaux qui seront de toute
-                 * façon rejetés.
                  */
 
                 const lastFmInfo =
@@ -1179,13 +1120,7 @@ async function generateQuestions(
 
                 /*
                  * Si une difficulté est demandée,
-                 * un morceau sans information Last.fm
-                 * est rejeté.
-                 *
-                 * C'est volontaire :
-                 * pour "Facile", on préfère ne rien
-                 * proposer plutôt que de prétendre
-                 * qu'un morceau est connu.
+                 * Last.fm est obligatoire.
                  */
 
                 if (
@@ -1254,6 +1189,12 @@ async function generateQuestions(
                         "";
 
 
+                    /*
+                     * Il faut suffisamment
+                     * de paroles pour créer
+                     * un extrait intéressant.
+                     */
+
                     if (
                         !fullLyrics ||
                         fullLyrics.length < 100
@@ -1266,8 +1207,11 @@ async function generateQuestions(
 
                     /*
                      * ============================
-                     * LANGUE
+                     * FILTRE LANGUE
                      * ============================
+                     *
+                     * Le jeu est exclusivement
+                     * francophone.
                      */
 
                     const languageDetected =
@@ -1277,10 +1221,7 @@ async function generateQuestions(
 
 
                     if (
-                        !matchesLanguage(
-                            languageDetected,
-                            language
-                        )
+                        languageDetected !== "fr"
                     ) {
 
                         continue;
@@ -1292,16 +1233,6 @@ async function generateQuestions(
                      * ============================
                      * EXTRAIT
                      * ============================
-                     *
-                     * La difficulté ne sert plus
-                     * à choisir un endroit particulier
-                     * dans la chanson.
-                     *
-                     * La popularité du morceau a déjà
-                     * déterminé la difficulté.
-                     *
-                     * L'extrait est donc choisi
-                     * indépendamment.
                      */
 
                     const excerpt =
@@ -1370,8 +1301,7 @@ async function generateQuestions(
 
 
             /*
-             * Aucun morceau valide trouvé
-             * pour cet artiste.
+             * Aucun morceau valide.
              */
 
             if (
@@ -1414,13 +1344,6 @@ async function generateQuestions(
                 genre:
                     genre,
 
-                /*
-                 * Ces données sont utiles
-                 * pour le débogage et pourront
-                 * éventuellement être masquées
-                 * plus tard côté client.
-                 */
-
                 popularity:
                     validRecording.popularity,
 
@@ -1434,7 +1357,8 @@ async function generateQuestions(
 
 
             /*
-             * Petite pause.
+             * Petite pause pour éviter
+             * de surcharger les services.
              */
 
             await sleep(250);
@@ -1482,6 +1406,9 @@ async function generateQuestions(
  * ============================
  * DÉTECTION DE LANGUE
  * ============================
+ *
+ * Détection volontairement orientée
+ * vers le français.
  */
 
 function detectLyricsLanguage(
@@ -1492,6 +1419,17 @@ function detectLyricsLanguage(
         normalizeText(
             lyrics
         );
+
+
+    if (!text) {
+
+        return "unknown";
+
+    }
+
+
+    const words =
+        text.split(/\s+/);
 
 
     const frenchWords = [
@@ -1545,7 +1483,43 @@ function detectLyricsLanguage(
         "vais",
         "va",
         "moi",
-        "toi"
+        "toi",
+        "eux",
+        "leur",
+        "leurs",
+        "bien",
+        "encore",
+        "quand",
+        "comment",
+        "pourquoi",
+        "parce",
+        "aussi",
+        "très",
+        "été",
+        "était",
+        "serai",
+        "seras",
+        "serait",
+        "avais",
+        "avait",
+        "aurai",
+        "aurais",
+        "dois",
+        "doit",
+        "peux",
+        "faut",
+        "fais",
+        "fait",
+        "viens",
+        "vient",
+        "aller",
+        "amour",
+        "coeur",
+        "vie",
+        "jour",
+        "nuit",
+        "temps",
+        "monde"
 
     ];
 
@@ -1593,7 +1567,22 @@ function detectLyricsLanguage(
         "one",
         "out",
         "get",
-        "got"
+        "got",
+        "yourself",
+        "myself",
+        "someone",
+        "something",
+        "never",
+        "always",
+        "really",
+        "there",
+        "here",
+        "away",
+        "back",
+        "down",
+        "come",
+        "going",
+        "gonna"
 
     ];
 
@@ -1603,30 +1592,20 @@ function detectLyricsLanguage(
 
 
     for (
-        const word of frenchWords
+        const word of words
     ) {
 
         if (
-            text.includes(
-                ` ${word} `
-            )
+            frenchWords.includes(word)
         ) {
 
             frenchScore++;
 
         }
 
-    }
-
-
-    for (
-        const word of englishWords
-    ) {
 
         if (
-            text.includes(
-                ` ${word} `
-            )
+            englishWords.includes(word)
         ) {
 
             englishScore++;
@@ -1637,8 +1616,8 @@ function detectLyricsLanguage(
 
 
     /*
-     * Les accents sont un indicateur
-     * supplémentaire du français.
+     * Les accents français apportent
+     * un bonus.
      */
 
     const accentMatches =
@@ -1649,23 +1628,37 @@ function detectLyricsLanguage(
 
     if (accentMatches) {
 
-        frenchScore += 2;
+        frenchScore +=
+            Math.min(
+                accentMatches.length,
+                10
+            );
 
     }
 
 
+    /*
+     * Si l'anglais domine,
+     * le morceau est rejeté.
+     */
+
     if (
-        frenchScore === 0 &&
-        englishScore === 0
+        englishScore > frenchScore
     ) {
 
-        return "unknown";
+        return "en";
 
     }
 
 
+    /*
+     * Il faut au minimum quelques
+     * indicateurs français.
+     */
+
     if (
-        frenchScore >= englishScore
+        frenchScore >= 3 &&
+        frenchScore > englishScore
     ) {
 
         return "fr";
@@ -1673,57 +1666,7 @@ function detectLyricsLanguage(
     }
 
 
-    return "en";
-
-}
-
-
-/*
- * ============================
- * CORRESPONDANCE DE LANGUE
- * ============================
- */
-
-function matchesLanguage(
-    detectedLanguage,
-    requestedLanguage
-) {
-
-    if (
-        requestedLanguage === "both"
-    ) {
-
-        return (
-            detectedLanguage === "fr" ||
-            detectedLanguage === "en"
-        );
-
-    }
-
-
-    if (
-        requestedLanguage === "fr"
-    ) {
-
-        return (
-            detectedLanguage === "fr"
-        );
-
-    }
-
-
-    if (
-        requestedLanguage === "en"
-    ) {
-
-        return (
-            detectedLanguage === "en"
-        );
-
-    }
-
-
-    return true;
+    return "unknown";
 
 }
 
@@ -1832,16 +1775,6 @@ function matchesEra(
  * ============================
  * CRÉATION DE L'EXTRAIT
  * ============================
- *
- * IMPORTANT :
- *
- * La popularité du morceau détermine
- * désormais la difficulté.
- *
- * L'extrait lui-même est sélectionné
- * indépendamment.
- *
- * On ne force donc PAS le refrain.
  */
 
 function createLyricsExcerpt(
@@ -1908,8 +1841,7 @@ function createLyricsExcerpt(
 
 
         /*
-         * Ne pas révéler le titre
-         * directement dans l'extrait.
+         * Ne pas révéler le titre.
          */
 
         if (
@@ -1975,13 +1907,7 @@ function createLyricsExcerpt(
 
 
     /*
-     * Sélection totalement aléatoire.
-     *
-     * Le morceau est déjà classé par
-     * popularité : nous n'avons donc
-     * aucune raison de favoriser le
-     * refrain pour rendre la question
-     * facile.
+     * Sélection aléatoire.
      */
 
     const randomIndex =
