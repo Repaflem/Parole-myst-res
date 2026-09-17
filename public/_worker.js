@@ -1,4 +1,3 @@
-```javascript
 const TIMEOUT = 7000;
 
 const CATALOGS = {
@@ -67,7 +66,6 @@ const CATALOGS = {
         "Aya Nakamura",
         "Juliette Armanet",
         "Clara Luciani",
-        "Pierre de Maere",
         "Hoshi",
         "Pomme",
         "Yseult",
@@ -76,7 +74,8 @@ const CATALOGS = {
         "Eddy de Pretto",
         "Christine and the Queens",
         "Mentissa",
-        "Zaho de Sagazan"
+        "Zaho de Sagazan",
+        "Pierre de Maere"
     ]
 };
 
@@ -85,9 +84,13 @@ const CATALOGS = {
    OUTILS
    ============================================================ */
 
-function json(data, status = 200) {
+function json(data, status) {
+    if (!status) {
+        status = 200;
+    }
+
     return new Response(JSON.stringify(data), {
-        status,
+        status: status,
         headers: {
             "Content-Type": "application/json; charset=utf-8",
             "Access-Control-Allow-Origin": "*"
@@ -96,10 +99,18 @@ function json(data, status = 200) {
 }
 
 
-async function fetchTimeout(url, options = {}, timeout = TIMEOUT) {
+async function fetchTimeout(url, options, timeout) {
+    if (!options) {
+        options = {};
+    }
+
+    if (!timeout) {
+        timeout = TIMEOUT;
+    }
+
     const controller = new AbortController();
 
-    const timer = setTimeout(() => {
+    const timer = setTimeout(function () {
         controller.abort();
     }, timeout);
 
@@ -115,11 +126,14 @@ async function fetchTimeout(url, options = {}, timeout = TIMEOUT) {
 
 
 function shuffle(array) {
-    const copy = [...array];
+    const copy = array.slice();
 
     for (let i = copy.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
-        [copy[i], copy[j]] = [copy[j], copy[i]];
+
+        const temp = copy[i];
+        copy[i] = copy[j];
+        copy[j] = temp;
     }
 
     return copy;
@@ -136,17 +150,28 @@ function normalize(text) {
 
 
 function yearOf(date) {
-    if (!date) return null;
+    if (!date) {
+        return null;
+    }
 
     const match = String(date).match(/\d{4}/);
 
-    return match ? Number(match[0]) : null;
+    if (!match) {
+        return null;
+    }
+
+    return Number(match[0]);
 }
 
 
 function isInEra(year, era) {
-    if (era === "all") return true;
-    if (!year) return false;
+    if (era === "all") {
+        return true;
+    }
+
+    if (!year) {
+        return false;
+    }
 
     const ranges = {
         "1960-1979": [1960, 1979],
@@ -159,7 +184,9 @@ function isInEra(year, era) {
 
     const range = ranges[era];
 
-    if (!range) return true;
+    if (!range) {
+        return true;
+    }
 
     return year >= range[0] && year <= range[1];
 }
@@ -170,7 +197,9 @@ function isInEra(year, era) {
    ============================================================ */
 
 function looksFrench(text) {
-    if (!text || text.length < 80) return false;
+    if (!text || text.length < 80) {
+        return false;
+    }
 
     const value = normalize(text);
 
@@ -205,7 +234,6 @@ function looksFrench(text) {
         " ma ",
         " ta ",
         " sur ",
-        " cette ",
         " cette ",
         " quand ",
         " encore ",
@@ -242,14 +270,22 @@ function cleanLyrics(text) {
 function createExcerpt(text) {
     const lyrics = cleanLyrics(text);
 
-    if (!lyrics) return null;
+    if (!lyrics) {
+        return null;
+    }
 
     const lines = lyrics
         .split("\n")
-        .map(line => line.trim())
-        .filter(line => line.length >= 3);
+        .map(function (line) {
+            return line.trim();
+        })
+        .filter(function (line) {
+            return line.length >= 3;
+        });
 
-    if (lines.length < 2) return null;
+    if (lines.length < 2) {
+        return null;
+    }
 
     const candidates = [];
 
@@ -257,7 +293,9 @@ function createExcerpt(text) {
         const block = lines.slice(i, i + 3);
 
         if (
-            block.every(line => line.length >= 3) &&
+            block.every(function (line) {
+                return line.length >= 3;
+            }) &&
             block.join(" ").length >= 80
         ) {
             candidates.push(block.join("\n"));
@@ -265,10 +303,14 @@ function createExcerpt(text) {
     }
 
     if (candidates.length === 0) {
-        return lines.slice(0, Math.min(4, lines.length)).join("\n");
+        return lines
+            .slice(0, Math.min(4, lines.length))
+            .join("\n");
     }
 
-    return candidates[Math.floor(Math.random() * candidates.length)];
+    return candidates[
+        Math.floor(Math.random() * candidates.length)
+    ];
 }
 
 
@@ -277,10 +319,20 @@ function createExcerpt(text) {
    ============================================================ */
 
 async function searchMusicBrainzArtist(artist) {
+    /*
+     * IMPORTANT :
+     * On évite ici les template literals.
+     */
+
+    const query =
+        'artist:"' +
+        artist +
+        '"';
+
     const url =
-        "https://musicbrainz.org/ws/2/artist/" +
+        "https://musicbrainz.org/ws/2/artist" +
         "?query=" +
-        encodeURIComponent(`artist:"${artist}"`) +
+        encodeURIComponent(query) +
         "&fmt=json&limit=5";
 
     try {
@@ -296,10 +348,12 @@ async function searchMusicBrainzArtist(artist) {
 
         const data = await response.json();
 
-        return Array.isArray(data.artists)
-            ? data.artists
-            : [];
-    } catch {
+        if (!Array.isArray(data.artists)) {
+            return [];
+        }
+
+        return data.artists;
+    } catch (error) {
         return [];
     }
 }
@@ -326,10 +380,12 @@ async function getArtistRecordings(artistId) {
 
         const data = await response.json();
 
-        return Array.isArray(data.recordings)
-            ? data.recordings
-            : [];
-    } catch {
+        if (!Array.isArray(data.recordings)) {
+            return [];
+        }
+
+        return data.recordings;
+    } catch (error) {
         return [];
     }
 }
@@ -349,9 +405,13 @@ function recordingToCandidate(recording, artistName) {
                 break;
             }
 
-            if (release["release-group"]?.["first-release-date"]) {
+            if (
+                release["release-group"] &&
+                release["release-group"]["first-release-date"]
+            ) {
                 releaseDate =
                     release["release-group"]["first-release-date"];
+
                 break;
             }
         }
@@ -397,10 +457,10 @@ async function getLyrics(artist, title) {
         }
 
         return {
-            lyrics,
+            lyrics: lyrics,
             source: "LRCLIB"
         };
-    } catch {
+    } catch (error) {
         return null;
     }
 }
@@ -411,7 +471,7 @@ async function getLyrics(artist, title) {
    ============================================================ */
 
 async function getLastFmInfo(artist, title, env) {
-    if (!env.LASTFM_API_KEY) {
+    if (!env || !env.LASTFM_API_KEY) {
         return null;
     }
 
@@ -435,18 +495,16 @@ async function getLastFmInfo(artist, title, env) {
 
         const data = await response.json();
 
-        const track = data.track;
-
-        if (!track) {
+        if (!data.track) {
             return null;
         }
 
         return {
-            listeners: Number(track.listeners || 0),
-            playcount: Number(track.playcount || 0),
-            url: track.url || null
+            listeners: Number(data.track.listeners || 0),
+            playcount: Number(data.track.playcount || 0),
+            url: data.track.url || null
         };
-    } catch {
+    } catch (error) {
         return null;
     }
 }
@@ -462,10 +520,10 @@ function matchesDifficulty(info, difficulty) {
     }
 
     /*
-     * Si Last.fm n'est pas disponible, on accepte la chanson.
-     * Cela évite de rendre le jeu inutilisable si Last.fm
-     * ne répond pas.
+     * Si Last.fm n'est pas disponible,
+     * on accepte la chanson.
      */
+
     if (!info) {
         return true;
     }
@@ -477,7 +535,8 @@ function matchesDifficulty(info, difficulty) {
     }
 
     if (difficulty === "medium") {
-        return listeners >= 30000 && listeners < 300000;
+        return listeners >= 30000 &&
+            listeners < 300000;
     }
 
     if (difficulty === "hard") {
@@ -492,8 +551,15 @@ function matchesDifficulty(info, difficulty) {
    CONSTRUCTION QUESTION
    ============================================================ */
 
-function buildQuestion(candidate, lyricsData, difficulty, genre, lastFmInfo) {
-    const excerpt = createExcerpt(lyricsData.lyrics);
+function buildQuestion(
+    candidate,
+    lyricsData,
+    difficulty,
+    genre,
+    lastFmInfo
+) {
+    const excerpt =
+        createExcerpt(lyricsData.lyrics);
 
     if (!excerpt) {
         return null;
@@ -503,10 +569,10 @@ function buildQuestion(candidate, lyricsData, difficulty, genre, lastFmInfo) {
         artist: candidate.artist,
         title: candidate.title,
         lyrics: excerpt,
-        difficulty,
+        difficulty: difficulty,
         year: candidate.year,
         language: "fr",
-        genre,
+        genre: genre,
         popularity: lastFmInfo
             ? lastFmInfo.listeners
             : null,
@@ -537,8 +603,11 @@ async function handleTest() {
    ============================================================ */
 
 async function handleMusicBrainz(url) {
-    const artist = url.searchParams.get("artist");
-    const title = url.searchParams.get("title");
+    const artist =
+        url.searchParams.get("artist");
+
+    const title =
+        url.searchParams.get("title");
 
     if (!artist || !title) {
         return json({
@@ -547,35 +616,39 @@ async function handleMusicBrainz(url) {
         }, 400);
     }
 
-    /*
-     * Cette route est principalement conservée pour les tests.
-     * On recherche l'artiste puis ses enregistrements.
-     */
-    const artists = await searchMusicBrainzArtist(artist);
+    const artists =
+        await searchMusicBrainzArtist(artist);
 
     if (!artists.length) {
         return json({
             success: false,
-            error: "Artiste introuvable sur MusicBrainz."
+            error:
+                "Artiste introuvable sur MusicBrainz."
         });
     }
 
-    const artistMatch = artists[0];
+    const exact =
+        artists.find(function (item) {
+            return normalize(item.name) ===
+                normalize(artist);
+        }) || artists[0];
 
-    const recordings = await getArtistRecordings(
-        artistMatch.id
-    );
+    const recordings =
+        await getArtistRecordings(exact.id);
 
-    const wanted = normalize(title);
+    const wanted =
+        normalize(title);
 
-    const matches = recordings.filter(recording => {
-        return normalize(recording.title) === wanted;
-    });
+    const matches =
+        recordings.filter(function (recording) {
+            return normalize(recording.title) ===
+                wanted;
+        });
 
     return json({
         success: true,
-        artist: artistMatch.name,
-        artistId: artistMatch.id,
+        artist: exact.name,
+        artistId: exact.id,
         requestedTitle: title,
         recordings: matches
     });
@@ -587,8 +660,11 @@ async function handleMusicBrainz(url) {
    ============================================================ */
 
 async function handleLyrics(url) {
-    const artist = url.searchParams.get("artist");
-    const title = url.searchParams.get("title");
+    const artist =
+        url.searchParams.get("artist");
+
+    const title =
+        url.searchParams.get("title");
 
     if (!artist || !title) {
         return json({
@@ -597,7 +673,8 @@ async function handleLyrics(url) {
         }, 400);
     }
 
-    const result = await getLyrics(artist, title);
+    const result =
+        await getLyrics(artist, title);
 
     if (!result) {
         return json({
@@ -608,8 +685,8 @@ async function handleLyrics(url) {
 
     return json({
         success: true,
-        artist,
-        title,
+        artist: artist,
+        title: title,
         source: result.source,
         lyrics: result.lyrics
     });
@@ -622,36 +699,39 @@ async function handleLyrics(url) {
 
 async function handleQuestions(url, env) {
     const genre =
-        url.searchParams.get("genre") || "all";
+        url.searchParams.get("genre") ||
+        "all";
 
     const era =
-        url.searchParams.get("era") || "all";
+        url.searchParams.get("era") ||
+        "all";
 
     const difficulty =
-        url.searchParams.get("difficulty") || "all";
+        url.searchParams.get("difficulty") ||
+        "all";
 
     const requested =
         Math.max(
             1,
             Math.min(
-                Number(url.searchParams.get("number")) || 10,
+                Number(
+                    url.searchParams.get("number")
+                ) || 10,
                 30
             )
         );
 
 
-    /*
-     * ----------------------------------------------------------
-     * DIAGNOSTICS
-     * ----------------------------------------------------------
-     */
+    /* ========================================================
+       DIAGNOSTICS
+       ======================================================== */
 
     const diagnostics = {
         parameters: {
-            genre,
-            era,
-            difficulty,
-            requested
+            genre: genre,
+            era: era,
+            difficulty: difficulty,
+            requested: requested
         },
 
         artistsCatalog: 0,
@@ -678,65 +758,77 @@ async function handleQuestions(url, env) {
     };
 
 
-    /*
-     * ----------------------------------------------------------
-     * CATALOGUE
-     * ----------------------------------------------------------
-     */
+    /* ========================================================
+       CATALOGUE
+       ======================================================== */
 
     let artists = [];
 
     if (genre === "all") {
-        for (const key of Object.keys(CATALOGS)) {
-            artists.push(...CATALOGS[key]);
-        }
-    } else {
-        artists = CATALOGS[genre]
-            ? [...CATALOGS[genre]]
-            : [];
+        Object.keys(CATALOGS).forEach(function (key) {
+            artists.push.apply(
+                artists,
+                CATALOGS[key]
+            );
+        });
+    } else if (CATALOGS[genre]) {
+        artists = CATALOGS[genre].slice();
     }
 
-    artists = [...new Set(artists)];
+    artists = Array.from(
+        new Set(artists)
+    );
 
-    diagnostics.artistsCatalog = artists.length;
+    diagnostics.artistsCatalog =
+        artists.length;
 
 
     if (!artists.length) {
         return json({
             success: true,
             questions: [],
-            requested,
+            requested: requested,
             count: 0,
-            diagnostics
+            diagnostics: diagnostics
         });
     }
 
 
-    /*
-     * ----------------------------------------------------------
-     * RECHERCHE DES ARTISTES
-     * ----------------------------------------------------------
-     */
+    /* ========================================================
+       RECHERCHE ARTISTES
+       ======================================================== */
 
     const artistResults = [];
 
-    for (const artistName of shuffle(artists)) {
-        const found = await searchMusicBrainzArtist(artistName);
+    const shuffledArtists =
+        shuffle(artists);
+
+    for (
+        let i = 0;
+        i < shuffledArtists.length;
+        i++
+    ) {
+        const artistName =
+            shuffledArtists[i];
+
+        const found =
+            await searchMusicBrainzArtist(
+                artistName
+            );
 
         if (!found.length) {
             diagnostics.artistsWithoutMusicBrainz++;
+
             continue;
         }
 
         diagnostics.artistsFound++;
 
-        /*
-         * On privilégie une correspondance exacte du nom.
-         */
         const exact =
-            found.find(item =>
-                normalize(item.name) === normalize(artistName)
-            ) || found[0];
+            found.find(function (item) {
+                return normalize(item.name) ===
+                    normalize(artistName);
+            }) || found[0];
 
         artistResults.push({
             requestedName: artistName,
@@ -744,32 +836,39 @@ async function handleQuestions(url, env) {
             name: exact.name
         });
 
-        /*
-         * On limite volontairement le nombre d'artistes
-         * pour éviter de surcharger MusicBrainz.
-         */
         if (artistResults.length >= 12) {
             break;
         }
     }
 
 
-    /*
-     * ----------------------------------------------------------
-     * RÉCUPÉRATION DES MORCEAUX
-     * ----------------------------------------------------------
-     */
+    /* ========================================================
+       RÉCUPÉRATION MORCEAUX
+       ======================================================== */
 
     let candidates = [];
 
-    for (const artist of artistResults) {
-        const recordings =
-            await getArtistRecordings(artist.id);
+    for (
+        let i = 0;
+        i < artistResults.length;
+        i++
+    ) {
+        const artist =
+            artistResults[i];
 
-        for (const recording of recordings) {
+        const recordings =
+            await getArtistRecordings(
+                artist.id
+            );
+
+        for (
+            let j = 0;
+            j < recordings.length;
+            j++
+        ) {
             const candidate =
                 recordingToCandidate(
-                    recording,
+                    recordings[j],
                     artist.name
                 );
 
@@ -779,7 +878,12 @@ async function handleQuestions(url, env) {
 
             diagnostics.recordingsFound++;
 
-            if (!isInEra(candidate.year, era)) {
+            if (
+                !isInEra(
+                    candidate.year,
+                    era
+                )
+            ) {
                 continue;
             }
 
@@ -790,15 +894,14 @@ async function handleQuestions(url, env) {
     }
 
 
-    /*
-     * ----------------------------------------------------------
-     * SUPPRESSION DES DOUBLONS
-     * ----------------------------------------------------------
-     */
+    /* ========================================================
+       DOUBLONS
+       ======================================================== */
 
-    const unique = new Map();
+    const unique =
+        new Map();
 
-    for (const candidate of candidates) {
+    candidates.forEach(function (candidate) {
         const key =
             normalize(candidate.artist) +
             "|" +
@@ -807,47 +910,52 @@ async function handleQuestions(url, env) {
         if (!unique.has(key)) {
             unique.set(key, candidate);
         }
-    }
+    });
 
-    candidates = [...unique.values()];
+    candidates =
+        Array.from(unique.values());
 
     diagnostics.recordingsAfterDuplicateFilter =
         candidates.length;
 
 
+    /* ========================================================
+       MÉLANGE
+       ======================================================== */
+
+    candidates =
+        shuffle(candidates);
+
+
     /*
-     * ----------------------------------------------------------
-     * MÉLANGE
-     * ----------------------------------------------------------
-     */
-
-    candidates = shuffle(candidates);
-
-
-    /*
-     * On limite les appels LRCLIB.
-     *
-     * Le diagnostic nous permettra de voir si cette limite
-     * doit être augmentée.
+     * Maximum 60 appels LRCLIB par requête.
      */
     const maxCandidates =
-        Math.min(candidates.length, 60);
+        Math.min(
+            candidates.length,
+            60
+        );
 
 
-    /*
-     * ----------------------------------------------------------
-     * PAROLES
-     * ----------------------------------------------------------
-     */
+    /* ========================================================
+       PAROLES
+       ======================================================== */
 
     const questions = [];
 
-    for (let i = 0; i < maxCandidates; i++) {
-        if (questions.length >= requested) {
+    for (
+        let i = 0;
+        i < maxCandidates;
+        i++
+    ) {
+        if (
+            questions.length >= requested
+        ) {
             break;
         }
 
-        const candidate = candidates[i];
+        const candidate =
+            candidates[i];
 
         diagnostics.lyricsRequests++;
 
@@ -864,25 +972,26 @@ async function handleQuestions(url, env) {
         diagnostics.lyricsFound++;
 
 
-        /*
-         * ------------------------------------------------------
-         * FRANÇAIS
-         * ------------------------------------------------------
-         */
+        /* ====================================================
+           FRANÇAIS
+           ==================================================== */
 
-        if (!looksFrench(lyricsData.lyrics)) {
+        if (
+            !looksFrench(
+                lyricsData.lyrics
+            )
+        ) {
             diagnostics.lyricsNotFrench++;
+
             continue;
         }
 
         diagnostics.lyricsFrench++;
 
 
-        /*
-         * ------------------------------------------------------
-         * LAST.FM
-         * ------------------------------------------------------
-         */
+        /* ====================================================
+           LAST.FM
+           ==================================================== */
 
         let lastFmInfo = null;
 
@@ -902,27 +1011,25 @@ async function handleQuestions(url, env) {
         }
 
 
-        /*
-         * ------------------------------------------------------
-         * DIFFICULTÉ
-         * ------------------------------------------------------
-         */
+        /* ====================================================
+           DIFFICULTÉ
+           ==================================================== */
 
-        if (!matchesDifficulty(
-            lastFmInfo,
-            difficulty
-        )) {
+        if (
+            !matchesDifficulty(
+                lastFmInfo,
+                difficulty
+            )
+        ) {
             continue;
         }
 
         diagnostics.difficultyAccepted++;
 
 
-        /*
-         * ------------------------------------------------------
-         * QUESTION
-         * ------------------------------------------------------
-         */
+        /* ====================================================
+           QUESTION
+           ==================================================== */
 
         const question =
             buildQuestion(
@@ -945,18 +1052,16 @@ async function handleQuestions(url, env) {
     }
 
 
-    /*
-     * ----------------------------------------------------------
-     * RÉPONSE
-     * ----------------------------------------------------------
-     */
+    /* ========================================================
+       RÉPONSE
+       ======================================================== */
 
     return json({
         success: true,
-        questions,
-        requested,
+        questions: questions,
+        requested: requested,
         count: questions.length,
-        diagnostics
+        diagnostics: diagnostics
     });
 }
 
@@ -967,40 +1072,67 @@ async function handleQuestions(url, env) {
 
 export default {
     async fetch(request, env) {
-        const url = new URL(request.url);
+        const url =
+            new URL(request.url);
 
         try {
-            if (request.method === "OPTIONS") {
-                return new Response(null, {
-                    status: 204,
-                    headers: {
-                        "Access-Control-Allow-Origin": "*",
-                        "Access-Control-Allow-Methods":
-                            "GET, OPTIONS",
-                        "Access-Control-Allow-Headers":
-                            "Content-Type"
+            if (
+                request.method ===
+                "OPTIONS"
+            ) {
+                return new Response(
+                    null,
+                    {
+                        status: 204,
+                        headers: {
+                            "Access-Control-Allow-Origin":
+                                "*",
+                            "Access-Control-Allow-Methods":
+                                "GET, OPTIONS",
+                            "Access-Control-Allow-Headers":
+                                "Content-Type"
+                        }
                     }
-                });
+                );
             }
 
 
-            if (url.pathname === "/api/test") {
+            if (
+                url.pathname ===
+                "/api/test"
+            ) {
                 return await handleTest();
             }
 
 
-            if (url.pathname === "/api/musicbrainz") {
-                return await handleMusicBrainz(url);
+            if (
+                url.pathname ===
+                "/api/musicbrainz"
+            ) {
+                return await handleMusicBrainz(
+                    url
+                );
             }
 
 
-            if (url.pathname === "/api/lyrics") {
-                return await handleLyrics(url);
+            if (
+                url.pathname ===
+                "/api/lyrics"
+            ) {
+                return await handleLyrics(
+                    url
+                );
             }
 
 
-            if (url.pathname === "/api/questions") {
-                return await handleQuestions(url, env);
+            if (
+                url.pathname ===
+                "/api/questions"
+            ) {
+                return await handleQuestions(
+                    url,
+                    env
+                );
             }
 
 
@@ -1016,48 +1148,17 @@ export default {
             );
 
         } catch (error) {
-            return json({
-                success: false,
-                error: error?.message ||
-                    "Erreur serveur inconnue."
-            }, 500);
+            return json(
+                {
+                    success: false,
+                    error:
+                        error &&
+                        error.message
+                            ? error.message
+                            : "Erreur serveur inconnue."
+                },
+                500
+            );
         }
     }
 };
-```
-
-### Maintenant, fais exactement ce test
-
-Après avoir remplacé le fichier :
-
-1. **Commit + push** sur GitHub.
-2. Attends que Cloudflare ait terminé le déploiement.
-3. Vérifie que le log Cloudflare affiche bien **un nouveau commit**, et pas `ed9a740`.
-4. Ouvre :
-
-```text
-https://paroles-mysteres.pages.dev/api/questions?genre=rap-francais&era=all&difficulty=all&number=5
-```
-
-Cette fois, même si `questions` est encore vide, la réponse contiendra quelque chose comme :
-
-```json
-"diagnostics": {
-  "artistsCatalog": 20,
-  "artistsFound": 12,
-  "recordingsFound": 500,
-  "recordingsAfterEra": 500,
-  "recordingsAfterDuplicateFilter": 450,
-  "lyricsRequests": 60,
-  "lyricsFound": 20,
-  "lyricsFrench": 15,
-  "lyricsNotFrench": 5,
-  "difficultyAccepted": 15,
-  "excerptsCreated": 15,
-  "questionsCreated": 5
-}
-```
-
-**Ne te fie pas aux nombres ci-dessus : ils sont juste un exemple.**
-
-👉 Envoie-moi **le JSON réel complet** que tu obtiens. Avec ça, on verra immédiatement **la ligne exacte où ça tombe à zéro**, et je pourrai ensuite corriger définitivement le générateur sans tâtonner.
