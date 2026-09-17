@@ -2,9 +2,6 @@ document.addEventListener(
     "DOMContentLoaded",
     function () {
 
-        const languageSelect =
-            document.getElementById("language");
-
         const genreSelect =
             document.getElementById("genre");
 
@@ -26,7 +23,6 @@ document.addEventListener(
          */
 
         if (
-            !languageSelect ||
             !genreSelect ||
             !eraSelect ||
             !difficultySelect ||
@@ -55,9 +51,6 @@ document.addEventListener(
                  */
 
                 const gameSettings = {
-
-                    language:
-                        languageSelect.value,
 
                     genre:
                         genreSelect.value,
