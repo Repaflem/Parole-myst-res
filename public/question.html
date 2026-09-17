@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>
+        Question · Paroles Mystères
+    </title>
+
+    <link
+        rel="stylesheet"
+        href="css/style.css"
+    >
+
+</head>
+
+<body>
+
+    <main class="game-container">
+
+        <!-- LOGO -->
+
+        <div class="logo">
+            🎵
+        </div>
+
+        <!-- PROGRESSION -->
+
+        <p class="question-number">
+
+            Question
+
+            <span id="current-question">
+                1
+            </span>
+
+            /
+
+            <span id="total-questions">
+                10
+            </span>
+
+        </p>
+
+        <!-- CARTE DES PAROLES -->
+
+        <section class="lyrics-card">
+
+            <p class="lyrics-intro">
+                De quelle chanson sont extraites ces paroles ?
+            </p>
+
+            <div
+                class="lyrics"
+                id="lyrics"
+            >
+                Chargement de la question...
+            </div>
+
+        </section>
+
+        <!-- CARTE DE RÉPONSE -->
+
+        <section
+            class="answer-card"
+            id="answer-card"
+        >
+
+            <label for="artist">
+
+                <span>
+                    🎤 Artiste
+                </span>
+
+                <input
+                    type="text"
+                    id="artist"
+                    placeholder="Nom de l'artiste"
+                    autocomplete="off"
+                >
+
+            </label>
+
+            <label for="title">
+
+                <span>
+                    🎵 Titre de la chanson
+                </span>
+
+                <input
+                    type="text"
+                    id="title"
+                    placeholder="Titre de la chanson"
+                    autocomplete="off"
+                >
+
+            </label>
+
+            <button
+                type="button"
+                id="validate-answer"
+                class="play-button answer-button"
+            >
+                Valider ma réponse
+            </button>
+
+        </section>
+
+        <!-- RÉSULTAT -->
+
+        <section
+            class="result-card"
+            id="result-card"
+            style="display: none;"
+        >
+
+            <div
+                id="result-icon"
+                class="result-icon"
+            >
+                🎉
+            </div>
+
+            <h2 id="result-title">
+                Bravo !
+            </h2>
+
+            <p id="result-message">
+                Bonne réponse !
+            </p>
+
+            <div class="correct-answer">
+
+                <p>
+                    <strong>
+                        🎤 Artiste
+                    </strong>
+                </p>
+
+                <p id="correct-artist">
+                    -
+                </p>
+
+                <p>
+                    <strong>
+                        🎵 Titre
+                    </strong>
+                </p>
+
+                <p id="correct-title">
+                    -
+                </p>
+
+            </div>
+
+            <!-- AUDIO -->
+
+            <div
+                id="audio-container"
+                class="audio-container"
+                style="display: none;"
+            >
+            </div>
+
+            <p class="points-earned">
+
+                <span id="points-earned">
+                    0
+                </span>
+
+                point(s) gagné(s)
+
+            </p>
+
+            <button
+                type="button"
+                id="next-question"
+                class="play-button answer-button"
+            >
+                Question suivante →
+            </button>
+
+        </section>
+
+        <!-- SCORE -->
+
+        <p class="current-score">
+
+            Score :
+
+            <strong id="score">
+                0
+            </strong>
+
+        </p>
+
+        <!-- RETOUR -->
+
+        <a
+            href="jeu.html"
+            class="back-link"
+        >
+            ← Modifier les paramètres
+        </a>
+
+    </main>
+
+    <footer>
+        Paroles Mystères · Jeu musical
+    </footer>
+
+    <!-- JavaScript -->
+
+    <script src="js/question.js"></script>
+
+</body>
+
+</html>
