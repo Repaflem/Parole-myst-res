@@ -707,6 +707,8 @@ export default {
       difficulty,
       number
     }) {
+      const questions = [];
+
       const diagnostics = {
         parameters: {
           genre,
@@ -1400,19 +1402,14 @@ export default {
 
     /*
      * ============================================================
-     * RACINE
+     * ASSETS STATIQUES (public/)
      * ============================================================
+     *
+     * Toute route qui n'est pas une API est servie
+     * depuis les fichiers statiques de public/
+     * (index.html, CSS, JS, etc.).
      */
 
-    return new Response(
-      "Paroles Mystères API",
-      {
-        status: 200,
-        headers: {
-          "Content-Type":
-            "text/plain; charset=utf-8"
-        }
-      }
-    );
+    return env.ASSETS.fetch(request);
   }
 };
