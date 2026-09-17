@@ -1,3 +1,4 @@
+```javascript
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -26,8 +27,8 @@ export default {
         "Michel Sardou",
         "Daniel Balavoine",
         "France Gall",
-        "Mylène Farmer",
-        "Céline Dion",
+        "Mylene Farmer",
+        "Celine Dion",
         "Patrick Bruel",
         "Florent Pagny",
         "Garou",
@@ -45,8 +46,8 @@ export default {
 
       "pop-rock-francais": [
         "Indochine",
-        "Téléphone",
-        "Noir Désir",
+        "Telephone",
+        "Noir Desir",
         "Louise Attaque",
         "Kyo",
         "Superbus",
@@ -57,7 +58,7 @@ export default {
         "Mickey 3D",
         "Phoenix",
         "Dionysos",
-        "The Dø",
+        "The Do",
         "Skip The Use",
         "Manu Chao",
         "Zebda",
@@ -90,12 +91,12 @@ export default {
       ],
 
       "pop-actuelle": [
-        "Angèle",
+        "Angele",
         "Aya Nakamura",
         "Juliette Armanet",
         "Clara Luciani",
         "Hoshi",
-        "Adé",
+        "Ade",
         "Pierre de Maere",
         "Mentissa",
         "Eddy de Pretto",
@@ -130,9 +131,17 @@ export default {
       });
     }
 
-    async function fetchTimeout(resource, options = {}, timeout = 10000) {
+    async function fetchTimeout(
+      resource,
+      options = {},
+      timeout = 10000
+    ) {
       const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), timeout);
+
+      const timer = setTimeout(
+        () => controller.abort(),
+        timeout
+      );
 
       try {
         return await fetch(resource, {
@@ -144,12 +153,21 @@ export default {
       }
     }
 
+    function sleep(ms) {
+      return new Promise(resolve =>
+        setTimeout(resolve, ms)
+      );
+    }
+
     function shuffle(array) {
       const copy = [...array];
 
       for (let i = copy.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [copy[i], copy[j]] = [copy[j], copy[i]];
+        const j =
+          Math.floor(Math.random() * (i + 1));
+
+        [copy[i], copy[j]] =
+          [copy[j], copy[i]];
       }
 
       return copy;
@@ -168,17 +186,25 @@ export default {
     function yearOf(value) {
       if (!value) return null;
 
-      const match = String(value).match(/\b(19|20)\d{2}\b/);
+      const match =
+        String(value).match(/\b(19|20)\d{2}\b/);
 
-      if (!match) return null;
-
-      return Number(match[0]);
+      return match ? Number(match[0]) : null;
     }
 
     function isInEra(year, era) {
-      if (era === "all") return true;
+      if (era === "all") {
+        return true;
+      }
 
-      if (!year) return true;
+      /*
+       * Lorsqu'une date est absente, on conserve le morceau.
+       * Cela évite de supprimer inutilement des titres.
+       */
+
+      if (!year) {
+        return true;
+      }
 
       const ranges = {
         "1960-1979": [1960, 1979],
@@ -191,15 +217,25 @@ export default {
 
       const range = ranges[era];
 
-      if (!range) return true;
+      if (!range) {
+        return true;
+      }
 
-      return year >= range[0] && year <= range[1];
+      return (
+        year >= range[0] &&
+        year <= range[1]
+      );
     }
 
     function looksFrench(text) {
-      if (!text || text.length < 80) return false;
+      if (!text || text.length < 80) {
+        return false;
+      }
 
-      const lower = text.toLowerCase();
+      const lower =
+        " " +
+        text.toLowerCase() +
+        " ";
 
       const frenchWords = [
         " le ",
@@ -235,7 +271,18 @@ export default {
         " son ",
         " notre ",
         " votre ",
-        " leur "
+        " leur ",
+        " mes ",
+        " tes ",
+        " ses ",
+        " cette ",
+        " ces ",
+        " tout ",
+        " tous ",
+        " rien ",
+        " bien ",
+        " quand ",
+        " parce "
       ];
 
       let score = 0;
@@ -250,13 +297,18 @@ export default {
     }
 
     function cleanLyrics(text) {
-      if (!text) return "";
+      if (!text) {
+        return "";
+      }
 
       let result = String(text);
 
       result = result.replace(/\r/g, "");
 
-      result = result.replace(/\[[^\]]*\]/g, "");
+      result = result.replace(
+        /\[[^\]]*\]/g,
+        ""
+      );
 
       result = result.replace(
         /^(paroles|lyrics|verse|chorus|refrain|couplet)[^\n]*$/gim,
@@ -273,44 +325,61 @@ export default {
     }
 
     function createExcerpt(text) {
-      const cleaned = cleanLyrics(text);
+      const cleaned =
+        cleanLyrics(text);
 
-      if (!cleaned) return null;
+      if (!cleaned) {
+        return null;
+      }
 
       const lines = cleaned
         .split("\n")
         .map(line => line.trim())
         .filter(line => line.length >= 8)
-        .filter(line => !/^https?:\/\//i.test(line));
+        .filter(
+          line =>
+            !/^https?:\/\//i.test(line)
+        );
 
-      if (lines.length < 2) return null;
+      if (lines.length < 2) {
+        return null;
+      }
 
       const possibleStarts = [];
 
-      for (let i = 0; i < lines.length - 1; i++) {
-        const a = lines[i];
-        const b = lines[i + 1];
-
+      for (
+        let i = 0;
+        i < lines.length - 1;
+        i++
+      ) {
         if (
-          a.length >= 12 &&
-          b.length >= 12 &&
-          a.length <= 180 &&
-          b.length <= 180
+          lines[i].length >= 12 &&
+          lines[i + 1].length >= 12 &&
+          lines[i].length <= 180 &&
+          lines[i + 1].length <= 180
         ) {
           possibleStarts.push(i);
         }
       }
 
-      if (possibleStarts.length === 0) return null;
+      if (!possibleStarts.length) {
+        return null;
+      }
 
       const start =
         possibleStarts[
-          Math.floor(Math.random() * possibleStarts.length)
+          Math.floor(
+            Math.random() *
+              possibleStarts.length
+          )
         ];
 
-      const selected = lines.slice(start, start + 4);
+      const selected =
+        lines.slice(start, start + 4);
 
-      if (selected.length < 2) return null;
+      if (selected.length < 2) {
+        return null;
+      }
 
       return selected.join("\n");
     }
@@ -319,145 +388,155 @@ export default {
      * ============================================================
      * MUSICBRAINZ
      * ============================================================
+     *
+     * IMPORTANT :
+     * On ne recherche PLUS l'ID MusicBrainz de l'artiste.
+     *
+     * On demande directement les recordings correspondant
+     * au nom de l'artiste.
+     *
+     * Cela supprime une série entière de requêtes et évite
+     * les 503 rencontrés précédemment.
      */
 
-    async function searchArtist(artistName) {
+    async function searchArtistRecordings(
+      artistName
+    ) {
+      const cleanArtist =
+        artistName.replace(/"/g, "");
+
       const query =
         'artist:"' +
-        artistName.replace(/"/g, "") +
+        cleanArtist +
         '"';
-
-      const endpoint =
-        "https://musicbrainz.org/ws/2/artist" +
-        "?query=" +
-        encodeURIComponent(query) +
-        "&fmt=json&limit=5";
-
-      const response = await fetchTimeout(
-        endpoint,
-        {
-          headers: {
-            "User-Agent": MB_USER_AGENT,
-            Accept: "application/json"
-          }
-        },
-        10000
-      );
-
-      if (!response.ok) {
-        throw new Error(
-          "MusicBrainz artist HTTP " + response.status
-        );
-      }
-
-      const data = await response.json();
-
-      if (!Array.isArray(data.artists)) {
-        return null;
-      }
-
-      const normalizedTarget = normalize(artistName);
-
-      let best = null;
-
-      for (const artist of data.artists) {
-        const name = artist.name || "";
-
-        if (!name) continue;
-
-        const normalizedName = normalize(name);
-
-        if (normalizedName === normalizedTarget) {
-          best = artist;
-          break;
-        }
-
-        if (!best) {
-          best = artist;
-        }
-      }
-
-      return best || null;
-    }
-
-    async function getArtistRecordings(artistMbid) {
-      /*
-       * IMPORTANT :
-       * On utilise ici la recherche MusicBrainz "recording"
-       * avec arid:<MBID>.
-       *
-       * L'ancienne version utilisait un endpoint qui ne renvoyait
-       * pas les enregistrements attendus.
-       */
-
-      const query = "arid:" + artistMbid;
 
       const endpoint =
         "https://musicbrainz.org/ws/2/recording" +
         "?query=" +
         encodeURIComponent(query) +
-        "&fmt=json&limit=100";
+        "&fmt=json&limit=50";
 
-      const response = await fetchTimeout(
-        endpoint,
-        {
-          headers: {
-            "User-Agent": MB_USER_AGENT,
-            Accept: "application/json"
-          }
-        },
-        15000
-      );
+      const response =
+        await fetchTimeout(
+          endpoint,
+          {
+            headers: {
+              "User-Agent":
+                MB_USER_AGENT,
+              Accept:
+                "application/json"
+            }
+          },
+          12000
+        );
 
       if (!response.ok) {
         throw new Error(
-          "MusicBrainz recordings HTTP " + response.status
+          "MusicBrainz recording HTTP " +
+            response.status
         );
       }
 
-      const data = await response.json();
+      const data =
+        await response.json();
 
-      if (!Array.isArray(data.recordings)) {
+      if (
+        !data ||
+        !Array.isArray(
+          data.recordings
+        )
+      ) {
         return [];
       }
 
       return data.recordings;
     }
 
-    function recordingToCandidate(recording, artistName) {
-      if (!recording || !recording.title) {
+    function recordingToCandidate(
+      recording,
+      artistName
+    ) {
+      if (
+        !recording ||
+        !recording.title
+      ) {
         return null;
       }
 
       let year = null;
 
-      if (Array.isArray(recording.releases)) {
-        for (const release of recording.releases) {
-          const releaseYear = yearOf(release.date);
+      /*
+       * MusicBrainz peut fournir la date via
+       * les releases associées au recording.
+       */
 
-          if (releaseYear) {
-            if (!year || releaseYear < year) {
-              year = releaseYear;
-            }
+      if (
+        Array.isArray(
+          recording.releases
+        )
+      ) {
+        for (
+          const release
+          of recording.releases
+        ) {
+          const releaseYear =
+            yearOf(release.date);
+
+          if (
+            releaseYear &&
+            (!year ||
+              releaseYear < year)
+          ) {
+            year = releaseYear;
           }
 
-          if (!year && release["release-group"]) {
-            const rgYear = yearOf(
-              release["release-group"].first_release_date
-            );
+          if (
+            release[
+              "release-group"
+            ]
+          ) {
+            const rgYear =
+              yearOf(
+                release[
+                  "release-group"
+                ]
+                  .first_release_date
+              );
 
-            if (rgYear) {
+            if (
+              rgYear &&
+              (!year ||
+                rgYear < year)
+            ) {
               year = rgYear;
             }
           }
         }
       }
 
+      /*
+       * Certaines réponses MusicBrainz peuvent
+       * contenir directement first-release-date.
+       */
+
+      if (
+        !year &&
+        recording[
+          "first-release-date"
+        ]
+      ) {
+        year = yearOf(
+          recording[
+            "first-release-date"
+          ]
+        );
+      }
+
       return {
         artist: artistName,
         title: recording.title,
-        year,
-        mbid: recording.id
+        year: year,
+        mbid: recording.id || null
       };
     }
 
@@ -467,7 +546,10 @@ export default {
      * ============================================================
      */
 
-    async function getLyrics(artist, title) {
+    async function getLyrics(
+      artist,
+      title
+    ) {
       const endpoint =
         "https://lrclib.net/api/get" +
         "?artist_name=" +
@@ -475,21 +557,24 @@ export default {
         "&track_name=" +
         encodeURIComponent(title);
 
-      const response = await fetchTimeout(
-        endpoint,
-        {
-          headers: {
-            Accept: "application/json"
-          }
-        },
-        10000
-      );
+      const response =
+        await fetchTimeout(
+          endpoint,
+          {
+            headers: {
+              Accept:
+                "application/json"
+            }
+          },
+          8000
+        );
 
       if (!response.ok) {
         return null;
       }
 
-      const data = await response.json();
+      const data =
+        await response.json();
 
       if (!data) {
         return null;
@@ -508,7 +593,10 @@ export default {
      * ============================================================
      */
 
-    async function getLastFmListeners(artist, title) {
+    async function getLastFmListeners(
+      artist,
+      title
+    ) {
       if (!LASTFM_API_KEY) {
         return null;
       }
@@ -517,28 +605,33 @@ export default {
         "https://ws.audioscrobbler.com/2.0/" +
         "?method=track.getInfo" +
         "&api_key=" +
-        encodeURIComponent(LASTFM_API_KEY) +
+        encodeURIComponent(
+          LASTFM_API_KEY
+        ) +
         "&artist=" +
         encodeURIComponent(artist) +
         "&track=" +
         encodeURIComponent(title) +
         "&format=json";
 
-      const response = await fetchTimeout(
-        endpoint,
-        {
-          headers: {
-            Accept: "application/json"
-          }
-        },
-        8000
-      );
+      const response =
+        await fetchTimeout(
+          endpoint,
+          {
+            headers: {
+              Accept:
+                "application/json"
+            }
+          },
+          7000
+        );
 
       if (!response.ok) {
         return null;
       }
 
-      const data = await response.json();
+      const data =
+        await response.json();
 
       const listeners =
         data &&
@@ -549,35 +642,54 @@ export default {
         return null;
       }
 
-      const number = Number(listeners);
+      const number =
+        Number(listeners);
 
-      return Number.isFinite(number) ? number : null;
+      return Number.isFinite(number)
+        ? number
+        : null;
     }
 
-    function difficultyMatches(listeners, difficulty) {
-      if (difficulty === "all") {
+    function difficultyMatches(
+      listeners,
+      difficulty
+    ) {
+      if (
+        difficulty === "all"
+      ) {
         return true;
       }
 
       /*
-       * Si Last.fm ne donne pas de nombre d'auditeurs,
-       * on accepte le morceau plutôt que de supprimer
-       * arbitrairement le candidat.
+       * Si Last.fm ne répond pas,
+       * on conserve le morceau.
        */
 
-      if (listeners === null || listeners === undefined) {
+      if (
+        listeners === null ||
+        listeners === undefined
+      ) {
         return true;
       }
 
-      if (difficulty === "easy") {
+      if (
+        difficulty === "easy"
+      ) {
         return listeners >= 300000;
       }
 
-      if (difficulty === "medium") {
-        return listeners >= 30000 && listeners < 300000;
+      if (
+        difficulty === "medium"
+      ) {
+        return (
+          listeners >= 30000 &&
+          listeners < 300000
+        );
       }
 
-      if (difficulty === "hard") {
+      if (
+        difficulty === "hard"
+      ) {
         return listeners < 30000;
       }
 
@@ -586,7 +698,7 @@ export default {
 
     /*
      * ============================================================
-     * CONSTRUCTION DES QUESTIONS
+     * BUILD QUESTIONS
      * ============================================================
      */
 
@@ -605,8 +717,10 @@ export default {
         },
 
         artistsCatalog: 0,
-        artistsFound: 0,
-        artistsWithoutMusicBrainz: 0,
+        artistsSelected: 0,
+
+        artistsWithRecordings: 0,
+        artistsWithoutRecordings: 0,
 
         recordingsFound: 0,
         recordingsAfterEra: 0,
@@ -627,198 +741,265 @@ export default {
         errors: []
       };
 
+      /*
+       * ----------------------------------------------------------
+       * CHOIX DU CATALOGUE
+       * ----------------------------------------------------------
+       */
+
       let artists = [];
 
       if (genre === "all") {
-        for (const category of Object.keys(ARTISTS)) {
-          artists.push(...ARTISTS[category]);
+        for (
+          const category
+          of Object.keys(ARTISTS)
+        ) {
+          artists.push(
+            ...ARTISTS[category]
+          );
         }
       } else {
-        artists = ARTISTS[genre] || [];
+        artists =
+          ARTISTS[genre] || [];
       }
 
-      artists = [...new Set(artists)];
+      artists = [
+        ...new Set(artists)
+      ];
 
-      diagnostics.artistsCatalog = artists.length;
-
-      /*
-       * On mélange les artistes pour éviter d'avoir toujours
-       * les mêmes premières chansons.
-       */
+      diagnostics.artistsCatalog =
+        artists.length;
 
       artists = shuffle(artists);
 
-      const artistObjects = [];
-
       /*
-       * MusicBrainz impose une limitation de débit.
-       * On traite les artistes un par un.
+       * ----------------------------------------------------------
+       * MUSICBRAINZ
+       * ----------------------------------------------------------
+       *
+       * Seulement 6 artistes sont interrogés.
+       *
+       * Avec la limitation de MusicBrainz,
+       * cela représente environ 6-8 secondes
+       * au lieu d'une longue série de recherches.
        */
 
-      for (const artistName of artists) {
-        if (artistObjects.length >= 12) {
-          break;
-        }
+      const selectedArtists =
+        artists.slice(0, 6);
 
-        try {
-          const artist = await searchArtist(artistName);
-
-          if (!artist || !artist.id) {
-            diagnostics.artistsWithoutMusicBrainz++;
-            continue;
-          }
-
-          diagnostics.artistsFound++;
-
-          artistObjects.push({
-            name: artistName,
-            mbid: artist.id
-          });
-
-          /*
-           * Petite pause pour respecter MusicBrainz.
-           */
-          await new Promise(resolve => setTimeout(resolve, 1100));
-        } catch (error) {
-          diagnostics.artistsWithoutMusicBrainz++;
-
-          if (diagnostics.errors.length < 10) {
-            diagnostics.errors.push(
-              "Artist " +
-                artistName +
-                ": " +
-                String(error.message || error)
-            );
-          }
-        }
-      }
-
-      /*
-       * ==========================================================
-       * RÉCUPÉRATION DES MORCEAUX
-       * ==========================================================
-       */
+      diagnostics.artistsSelected =
+        selectedArtists.length;
 
       let candidates = [];
 
-      for (const artist of artistObjects) {
-        if (candidates.length >= 120) {
-          break;
-        }
-
+      for (
+        const artistName
+        of selectedArtists
+      ) {
         try {
-          const recordings = await getArtistRecordings(
-            artist.mbid
-          );
-
-          diagnostics.recordingsFound += recordings.length;
-
-          for (const recording of recordings) {
-            const candidate = recordingToCandidate(
-              recording,
-              artist.name
+          const recordings =
+            await searchArtistRecordings(
+              artistName
             );
+
+          diagnostics.recordingsFound +=
+            recordings.length;
+
+          if (
+            recordings.length === 0
+          ) {
+            diagnostics.artistsWithoutRecordings++;
+          } else {
+            diagnostics.artistsWithRecordings++;
+          }
+
+          for (
+            const recording
+            of recordings
+          ) {
+            const candidate =
+              recordingToCandidate(
+                recording,
+                artistName
+              );
 
             if (!candidate) {
               continue;
             }
 
-            if (!isInEra(candidate.year, era)) {
+            if (
+              !isInEra(
+                candidate.year,
+                era
+              )
+            ) {
               continue;
             }
 
             diagnostics.recordingsAfterEra++;
 
-            candidates.push(candidate);
-
-            if (candidates.length >= 120) {
-              break;
-            }
+            candidates.push(
+              candidate
+            );
           }
 
           /*
-           * MusicBrainz rate limit.
+           * MusicBrainz demande environ
+           * 1 requête/seconde.
            */
-          await new Promise(resolve => setTimeout(resolve, 1100));
+
+          await sleep(1200);
         } catch (error) {
-          if (diagnostics.errors.length < 10) {
+          if (
+            diagnostics.errors.length <
+            10
+          ) {
             diagnostics.errors.push(
-              "Recordings " +
-                artist.name +
+              "MusicBrainz " +
+                artistName +
                 ": " +
-                String(error.message || error)
+                String(
+                  error.message ||
+                    error
+                )
             );
           }
+
+          /*
+           * On continue avec l'artiste
+           * suivant même en cas de 503.
+           */
+
+          await sleep(1500);
         }
       }
 
       /*
-       * ==========================================================
-       * SUPPRESSION DES DOUBLONS
-       * ==========================================================
+       * ----------------------------------------------------------
+       * DOUBLONS
+       * ----------------------------------------------------------
        */
 
-      const seen = new Set();
+      const seen =
+        new Set();
 
-      candidates = candidates.filter(candidate => {
-        const key =
-          normalize(candidate.artist) +
-          "|" +
-          normalize(candidate.title);
+      candidates =
+        candidates.filter(
+          candidate => {
+            const key =
+              normalize(
+                candidate.artist
+              ) +
+              "|" +
+              normalize(
+                candidate.title
+              );
 
-        if (seen.has(key)) {
-          return false;
-        }
+            if (
+              seen.has(key)
+            ) {
+              return false;
+            }
 
-        seen.add(key);
-        return true;
-      });
+            seen.add(key);
+
+            return true;
+          }
+        );
 
       diagnostics.recordingsAfterDuplicateFilter =
         candidates.length;
 
-      candidates = shuffle(candidates);
+      candidates =
+        shuffle(candidates);
 
       /*
-       * On ne teste pas 120 morceaux avec LRCLIB.
-       * Cela ralentirait inutilement la requête.
+       * On limite le nombre de requêtes LRCLIB.
+       */
+
+      candidates =
+        candidates.slice(0, 24);
+
+      /*
+       * ----------------------------------------------------------
+       * LRCLIB
+       * ----------------------------------------------------------
        *
-       * 35 candidats suffisent généralement pour obtenir
-       * plusieurs questions.
+       * On traite 6 morceaux en parallèle.
+       * Cela réduit fortement le temps d'attente.
        */
 
-      candidates = candidates.slice(0, 35);
+      const batchSize = 6;
 
-      const questions = [];
-
-      /*
-       * ==========================================================
-       * PAROLES
-       * ==========================================================
-       */
-
-      for (const candidate of candidates) {
-        if (questions.length >= number) {
+      for (
+        let i = 0;
+        i < candidates.length;
+        i += batchSize
+      ) {
+        if (
+          diagnostics.questionsCreated >=
+          number
+        ) {
           break;
         }
 
-        diagnostics.lyricsRequests++;
-
-        try {
-          const lyrics = await getLyrics(
-            candidate.artist,
-            candidate.title
+        const batch =
+          candidates.slice(
+            i,
+            i + batchSize
           );
 
-          if (!lyrics) {
+        diagnostics.lyricsRequests +=
+          batch.length;
+
+        const results =
+          await Promise.all(
+            batch.map(
+              async candidate => {
+                try {
+                  const lyrics =
+                    await getLyrics(
+                      candidate.artist,
+                      candidate.title
+                    );
+
+                  if (!lyrics) {
+                    return null;
+                  }
+
+                  return {
+                    candidate,
+                    lyrics
+                  };
+                } catch {
+                  return null;
+                }
+              }
+            )
+          );
+
+        for (
+          const result
+          of results
+        ) {
+          if (
+            !result ||
+            diagnostics.questionsCreated >=
+              number
+          ) {
             continue;
           }
 
           diagnostics.lyricsFound++;
 
-          const cleaned = cleanLyrics(lyrics);
+          const cleaned =
+            cleanLyrics(
+              result.lyrics
+            );
 
-          if (!looksFrench(cleaned)) {
+          if (
+            !looksFrench(cleaned)
+          ) {
             diagnostics.lyricsNotFrench++;
             continue;
           }
@@ -826,30 +1007,36 @@ export default {
           diagnostics.lyricsFrench++;
 
           /*
-           * ======================================================
+           * ------------------------------------------------------
            * LAST.FM
-           * ======================================================
+           * ------------------------------------------------------
            */
 
           let listeners = null;
 
-          if (LASTFM_API_KEY) {
+          /*
+           * Pour "all", inutile de contacter Last.fm.
+           */
+
+          if (
+            difficulty !== "all" &&
+            LASTFM_API_KEY
+          ) {
             diagnostics.lastFmRequests++;
 
             try {
-              listeners = await getLastFmListeners(
-                candidate.artist,
-                candidate.title
-              );
+              listeners =
+                await getLastFmListeners(
+                  result.candidate.artist,
+                  result.candidate.title
+                );
 
-              if (listeners !== null) {
+              if (
+                listeners !== null
+              ) {
                 diagnostics.lastFmFound++;
               }
-            } catch (error) {
-              /*
-               * Last.fm ne doit jamais empêcher une question
-               * d'être créée.
-               */
+            } catch {
               listeners = null;
             }
           }
@@ -865,7 +1052,10 @@ export default {
 
           diagnostics.difficultyAccepted++;
 
-          const excerpt = createExcerpt(cleaned);
+          const excerpt =
+            createExcerpt(
+              cleaned
+            );
 
           if (!excerpt) {
             continue;
@@ -873,33 +1063,17 @@ export default {
 
           diagnostics.excerptsCreated++;
 
-          questions.push({
-            artist: candidate.artist,
-            title: candidate.title,
-            year: candidate.year,
-            difficulty:
-              difficulty === "all"
-                ? "medium"
-                : difficulty,
-            lyrics: excerpt,
-            points:
-              difficulty === "hard"
-                ? 3
-                : difficulty === "medium"
-                  ? 2
-                  : 1
-          });
-        } catch (error) {
-          if (diagnostics.errors.length < 10) {
-            diagnostics.errors.push(
-              "Lyrics " +
-                candidate.artist +
-                " - " +
-                candidate.title +
-                ": " +
-                String(error.message || error)
-            );
-          }
+          const finalDifficulty =
+            difficulty === "all"
+              ? "medium"
+              : difficulty;
+
+          questionsPush(
+            result.candidate,
+            excerpt,
+            finalDifficulty,
+            diagnostics
+          );
         }
       }
 
@@ -910,36 +1084,99 @@ export default {
         questions,
         diagnostics
       };
+
+      /*
+       * ----------------------------------------------------------
+       * Fonction locale de création
+       * ----------------------------------------------------------
+       */
+
+      function questionsPush(
+        candidate,
+        excerpt,
+        finalDifficulty,
+        diagnosticObject
+      ) {
+        if (
+          questions.length >=
+          number
+        ) {
+          return;
+        }
+
+        questions.push({
+          artist:
+            candidate.artist,
+
+          title:
+            candidate.title,
+
+          year:
+            candidate.year,
+
+          difficulty:
+            finalDifficulty,
+
+          lyrics:
+            excerpt,
+
+          points:
+            finalDifficulty === "hard"
+              ? 3
+              : finalDifficulty ===
+                "medium"
+                ? 2
+                : 1
+        });
+
+        diagnosticObject.questionsCreated =
+          questions.length;
+      }
     }
 
     /*
      * ============================================================
-     * ROUTE /api/test
+     * API TEST
      * ============================================================
      */
 
-    if (url.pathname === "/api/test") {
+    if (
+      url.pathname ===
+      "/api/test"
+    ) {
       return json({
         success: true,
-        message: "Paroles Mystères API fonctionne !"
+        message:
+          "Paroles Mystères API fonctionne !"
       });
     }
 
     /*
      * ============================================================
-     * ROUTE /api/musicbrainz
+     * API MUSICBRAINZ
      * ============================================================
      */
 
-    if (url.pathname === "/api/musicbrainz") {
-      const artist = url.searchParams.get("artist");
-      const title = url.searchParams.get("title");
+    if (
+      url.pathname ===
+      "/api/musicbrainz"
+    ) {
+      const artist =
+        url.searchParams.get(
+          "artist"
+        );
+
+      const title =
+        url.searchParams.get(
+          "title"
+        );
 
       if (!artist || !title) {
         return json(
           {
             success: false,
-            error: "Artiste et titre requis."
+            error:
+              "Artiste et titre requis."
           },
           400
         );
@@ -948,27 +1185,38 @@ export default {
       try {
         const query =
           'recording:"' +
-          title.replace(/"/g, "") +
+          title.replace(
+            /"/g,
+            ""
+          ) +
           '" AND artist:"' +
-          artist.replace(/"/g, "") +
+          artist.replace(
+            /"/g,
+            ""
+          ) +
           '"';
 
         const endpoint =
           "https://musicbrainz.org/ws/2/recording" +
           "?query=" +
-          encodeURIComponent(query) +
+          encodeURIComponent(
+            query
+          ) +
           "&fmt=json&limit=5";
 
-        const response = await fetchTimeout(
-          endpoint,
-          {
-            headers: {
-              "User-Agent": MB_USER_AGENT,
-              Accept: "application/json"
-            }
-          },
-          10000
-        );
+        const response =
+          await fetchTimeout(
+            endpoint,
+            {
+              headers: {
+                "User-Agent":
+                  MB_USER_AGENT,
+                Accept:
+                  "application/json"
+              }
+            },
+            10000
+          );
 
         if (!response.ok) {
           return json(
@@ -982,20 +1230,24 @@ export default {
           );
         }
 
-        const data = await response.json();
+        const data =
+          await response.json();
 
         return json({
           success: true,
           artist,
           title,
-          recordings: data.recordings || []
+          recordings:
+            data.recordings ||
+            []
         });
       } catch (error) {
         return json(
           {
             success: false,
             error: String(
-              error.message || error
+              error.message ||
+                error
             )
           },
           500
@@ -1005,43 +1257,58 @@ export default {
 
     /*
      * ============================================================
-     * ROUTE /api/lyrics
+     * API LYRICS
      * ============================================================
      */
 
-    if (url.pathname === "/api/lyrics") {
-      const artist = url.searchParams.get("artist");
-      const title = url.searchParams.get("title");
+    if (
+      url.pathname ===
+      "/api/lyrics"
+    ) {
+      const artist =
+        url.searchParams.get(
+          "artist"
+        );
+
+      const title =
+        url.searchParams.get(
+          "title"
+        );
 
       if (!artist || !title) {
         return json(
           {
             success: false,
-            error: "Artiste et titre requis."
+            error:
+              "Artiste et titre requis."
           },
           400
         );
       }
 
       try {
-        const lyrics = await getLyrics(
-          artist,
-          title
-        );
+        const lyrics =
+          await getLyrics(
+            artist,
+            title
+          );
 
         return json({
           success: true,
           artist,
           title,
-          found: Boolean(lyrics),
-          lyrics: lyrics || null
+          found:
+            Boolean(lyrics),
+          lyrics:
+            lyrics || null
         });
       } catch (error) {
         return json(
           {
             success: false,
             error: String(
-              error.message || error
+              error.message ||
+                error
             )
           },
           500
@@ -1051,34 +1318,48 @@ export default {
 
     /*
      * ============================================================
-     * ROUTE /api/questions
+     * API QUESTIONS
      * ============================================================
      */
 
-    if (url.pathname === "/api/questions") {
+    if (
+      url.pathname ===
+      "/api/questions"
+    ) {
       const genre =
-        url.searchParams.get("genre") || "all";
+        url.searchParams.get(
+          "genre"
+        ) || "all";
 
       const era =
-        url.searchParams.get("era") || "all";
+        url.searchParams.get(
+          "era"
+        ) || "all";
 
       const difficulty =
-        url.searchParams.get("difficulty") || "all";
+        url.searchParams.get(
+          "difficulty"
+        ) || "all";
 
       const requestedNumber =
         Number(
-          url.searchParams.get("number") || "10"
+          url.searchParams.get(
+            "number"
+          ) || "10"
         );
 
-      const number = Math.min(
-        Math.max(
-          Number.isFinite(requestedNumber)
-            ? requestedNumber
-            : 10,
-          1
-        ),
-        30
-      );
+      const number =
+        Math.min(
+          Math.max(
+            Number.isFinite(
+              requestedNumber
+            )
+              ? requestedNumber
+              : 10,
+            1
+          ),
+          30
+        );
 
       try {
         const result =
@@ -1091,17 +1372,26 @@ export default {
 
         return json({
           success: true,
-          questions: result.questions,
-          requested: number,
-          count: result.questions.length,
-          diagnostics: result.diagnostics
+
+          questions:
+            result.questions,
+
+          requested:
+            number,
+
+          count:
+            result.questions.length,
+
+          diagnostics:
+            result.diagnostics
         });
       } catch (error) {
         return json(
           {
             success: false,
             error: String(
-              error.message || error
+              error.message ||
+                error
             )
           },
           500
@@ -1111,7 +1401,7 @@ export default {
 
     /*
      * ============================================================
-     * ROUTE RACINE
+     * RACINE
      * ============================================================
      */
 
@@ -1120,9 +1410,11 @@ export default {
       {
         status: 200,
         headers: {
-          "Content-Type": "text/plain; charset=utf-8"
+          "Content-Type":
+            "text/plain; charset=utf-8"
         }
       }
     );
   }
 };
+```
