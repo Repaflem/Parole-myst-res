@@ -45,8 +45,7 @@ async function searchMusicBrainz(url) {
         return jsonResponse(
             {
                 success: false,
-                error:
-                    "Artiste et titre requis."
+                error: "Artiste et titre requis."
             },
             400
         );
@@ -160,8 +159,7 @@ async function getLyrics(url) {
         return jsonResponse(
             {
                 success: false,
-                error:
-                    "Artiste et titre requis."
+                error: "Artiste et titre requis."
             },
             400
         );
@@ -283,15 +281,9 @@ async function generateQuestions(url) {
         );
 
 
-    /*
-     * LISTES D'ARTISTES
-     *
-     * Pour l'instant nous utilisons des listes
-     * séparées selon la langue.
-     *
-     * Elles seront encore améliorées ensuite
-     * pour gérer correctement les genres et les époques.
-     */
+    /* =====================================================
+       ARTISTES FRANÇAIS
+       ===================================================== */
 
     const frenchArtists = [
 
@@ -328,6 +320,10 @@ async function generateQuestions(url) {
     ];
 
 
+    /* =====================================================
+       ARTISTES ANGLAIS
+       ===================================================== */
+
     const englishArtists = [
 
         "Queen",
@@ -363,21 +359,23 @@ async function generateQuestions(url) {
     ];
 
 
-    /*
-     * Choix de la liste selon la langue.
-     */
+    /* =====================================================
+       CHOIX DE LA LANGUE
+       ===================================================== */
 
     let artists = [];
 
     if (language === "fr") {
 
-        artists =
-            [...frenchArtists];
+        artists = [
+            ...frenchArtists
+        ];
 
     } else if (language === "en") {
 
-        artists =
-            [...englishArtists];
+        artists = [
+            ...englishArtists
+        ];
 
     } else {
 
@@ -388,25 +386,30 @@ async function generateQuestions(url) {
     }
 
 
-    /*
-     * Mélange aléatoire.
-     */
+    /* =====================================================
+       MÉLANGE DES ARTISTES
+       ===================================================== */
 
     artists =
-        artists.sort(
-            () =>
-                Math.random() -
-                0.5
+        shuffleArray(
+            artists
         );
 
 
     const questions = [];
 
 
-    /*
-     * On parcourt les artistes jusqu'à obtenir
-     * le nombre de questions demandé.
-     */
+    /* =====================================================
+       ARTISTES DÉJÀ UTILISÉS
+       ===================================================== */
+
+    const usedArtists =
+        new Set();
+
+
+    /* =====================================================
+       PARCOURS DES ARTISTES
+       ===================================================== */
 
     for (
         const artist of artists
@@ -419,7 +422,28 @@ async function generateQuestions(url) {
         }
 
 
+        /*
+         * Sécurité supplémentaire :
+         * un artiste ne peut apparaître
+         * qu'une seule fois.
+         */
+
+        if (
+            usedArtists.has(
+                normalizeArtistName(
+                    artist
+                )
+            )
+        ) {
+            continue;
+        }
+
+
         try {
+
+            /* =================================================
+               RECHERCHE MUSICBRAINZ
+               ================================================= */
 
             const searchUrl =
                 "https://musicbrainz.org/ws/2/recording/" +
@@ -465,29 +489,28 @@ async function generateQuestions(url) {
 
 
             /*
-             * Mélange des chansons de l'artiste.
+             * Mélange des chansons.
              */
 
             const shuffledRecordings =
-                [...recordings].sort(
-                    () =>
-                        Math.random() -
-                        0.5
+                shuffleArray(
+                    recordings
                 );
+
+
+            /*
+             * On cherche UNE chanson valable
+             * pour cet artiste.
+             */
+
+            let artistQuestion =
+                null;
 
 
             for (
                 const recording
                 of shuffledRecordings
             ) {
-
-                if (
-                    questions.length >=
-                    number
-                ) {
-                    break;
-                }
-
 
                 const recordingArtist =
                     recording[
@@ -513,9 +536,9 @@ async function generateQuestions(url) {
                 }
 
 
-                /*
-                 * Vérification de l'époque.
-                 */
+                /* =============================================
+                   FILTRE ÉPOQUE
+                   ============================================= */
 
                 if (
                     !matchesEra(
@@ -527,9 +550,9 @@ async function generateQuestions(url) {
                 }
 
 
-                /*
-                 * Recherche des paroles.
-                 */
+                /* =============================================
+                   RECHERCHE DES PAROLES
+                   ============================================= */
 
                 const lyricsUrl =
                     "https://lrclib.net/api/get" +
@@ -579,33 +602,10 @@ async function generateQuestions(url) {
 
 
                 /*
-                 * Évite les doublons.
+                 * Question valide trouvée.
                  */
 
-                const duplicate =
-                    questions.some(
-                        question =>
-
-                            question.artist
-                                .toLowerCase() ===
-                            recordingArtist
-                                .toLowerCase()
-
-                            &&
-
-                            question.title
-                                .toLowerCase() ===
-                            recordingTitle
-                                .toLowerCase()
-                    );
-
-
-                if (duplicate) {
-                    continue;
-                }
-
-
-                questions.push({
+                artistQuestion = {
 
                     artist:
                         recordingArtist,
@@ -627,17 +627,38 @@ async function generateQuestions(url) {
 
                     genre:
                         genre
-                });
+                };
 
 
-                /*
-                 * Petite pause entre certaines
-                 * requêtes pour éviter de solliciter
-                 * trop rapidement les API.
-                 */
-
-                await sleep(100);
+                break;
             }
+
+
+            /* =================================================
+               AJOUT DE LA QUESTION
+               ================================================= */
+
+            if (artistQuestion) {
+
+                questions.push(
+                    artistQuestion
+                );
+
+
+                usedArtists.add(
+                    normalizeArtistName(
+                        artistQuestion.artist
+                    )
+                );
+            }
+
+
+            /*
+             * Petite pause pour éviter de marteler
+             * les API.
+             */
+
+            await sleep(100);
 
 
         } catch (error) {
@@ -649,6 +670,10 @@ async function generateQuestions(url) {
         }
     }
 
+
+    /* =====================================================
+       RÉPONSE
+       ===================================================== */
 
     return jsonResponse({
 
@@ -757,5 +782,147 @@ function matchesEra(
 }
 
 
-/* ============*
+/* =========================================================
+   EXTRAIT DE PAROLES
+   ========================================================= */
+
+function createLyricsExcerpt(
+    lyrics
+) {
+
+    const lines =
+        lyrics
+            .split("\n")
+            .map(
+                line =>
+                    line.trim()
+            )
+            .filter(
+                line =>
+                    line.length > 0
+            );
+
+
+    if (
+        lines.length < 3
+    ) {
+        return null;
+    }
+
+
+    const maxStart =
+        Math.max(
+            lines.length - 4,
+            0
+        );
+
+
+    const start =
+        Math.floor(
+            Math.random() *
+            (
+                maxStart + 1
+            )
+        );
+
+
+    const selected =
+        lines.slice(
+            start,
+            start + 4
+        );
+
+
+    return selected.join(
+        "\n"
+    );
+}
+
+
+/* =========================================================
+   MÉLANGE ALÉATOIRE
+   ========================================================= */
+
+function shuffleArray(
+    array
+) {
+
+    return [...array].sort(
+        () =>
+            Math.random() - 0.5
+    );
+}
+
+
+/* =========================================================
+   NORMALISATION D'ARTISTE
+   ========================================================= */
+
+function normalizeArtistName(
+    artist
+) {
+
+    return String(
+        artist
+    )
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(
+            /[\u0300-\u036f]/g,
+            ""
+        )
+        .trim();
+}
+
+
+/* =========================================================
+   PETITE PAUSE
+   ========================================================= */
+
+function sleep(
+    milliseconds
+) {
+
+    return new Promise(
+        resolve =>
+            setTimeout(
+                resolve,
+                milliseconds
+            )
+    );
+}
+
+
+/* =========================================================
+   RÉPONSE JSON
+   ========================================================= */
+
+function jsonResponse(
+    data,
+    status = 200
+) {
+
+    return new Response(
+
+        JSON.stringify(
+            data,
+            null,
+            2
+        ),
+
+        {
+
+            status,
+
+            headers: {
+
+                "Content-Type":
+                    "application/json; charset=UTF-8",
+
+                "Cache-Control":
+                    "no-store"
+            }
+        }
+    );
+}
 ```
