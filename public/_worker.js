@@ -205,6 +205,142 @@ export default {
 
     /*
      * ============================================================
+     * JETON DE REPONSE (anti-triche)
+     * ============================================================
+     *
+     * La bonne réponse ne doit jamais transiter en clair vers
+     * le navigateur. On la chiffre dans un jeton opaque que le
+     * client renvoie tel quel lors de la validation ; seul le
+     * Worker, avec sa clé secrète, peut le déchiffrer.
+     */
+
+    async function getAnswerKey() {
+      const secret =
+        env.ANSWER_SECRET ||
+        "paroles-mysteres-cle-par-defaut-a-changer";
+
+      const digest =
+        await crypto.subtle.digest(
+          "SHA-256",
+          new TextEncoder().encode(
+            secret
+          )
+        );
+
+      return crypto.subtle.importKey(
+        "raw",
+        digest,
+        { name: "AES-GCM" },
+        false,
+        ["encrypt", "decrypt"]
+      );
+    }
+
+    function bytesToBase64Url(bytes) {
+      let binary = "";
+
+      for (const byte of bytes) {
+        binary +=
+          String.fromCharCode(byte);
+      }
+
+      return btoa(binary)
+        .replace(/\+/g, "-")
+        .replace(/\//g, "_")
+        .replace(/=+$/, "");
+    }
+
+    function base64UrlToBytes(value) {
+      const base64 =
+        value
+          .replace(/-/g, "+")
+          .replace(/_/g, "/");
+
+      const binary = atob(base64);
+
+      const bytes = new Uint8Array(
+        binary.length
+      );
+
+      for (
+        let i = 0;
+        i < binary.length;
+        i++
+      ) {
+        bytes[i] =
+          binary.charCodeAt(i);
+      }
+
+      return bytes;
+    }
+
+    async function encryptAnswer(
+      payload,
+      key
+    ) {
+      const iv =
+        crypto.getRandomValues(
+          new Uint8Array(12)
+        );
+
+      const data =
+        new TextEncoder().encode(
+          JSON.stringify(payload)
+        );
+
+      const ciphertext =
+        await crypto.subtle.encrypt(
+          { name: "AES-GCM", iv },
+          key,
+          data
+        );
+
+      const combined =
+        new Uint8Array(
+          iv.length +
+            ciphertext.byteLength
+        );
+
+      combined.set(iv, 0);
+
+      combined.set(
+        new Uint8Array(ciphertext),
+        iv.length
+      );
+
+      return bytesToBase64Url(
+        combined
+      );
+    }
+
+    async function decryptAnswer(
+      token,
+      key
+    ) {
+      const bytes =
+        base64UrlToBytes(token);
+
+      const iv = bytes.slice(0, 12);
+
+      const ciphertext =
+        bytes.slice(12);
+
+      const decrypted =
+        await crypto.subtle.decrypt(
+          { name: "AES-GCM", iv },
+          key,
+          ciphertext
+        );
+
+      return JSON.parse(
+        new TextDecoder().decode(
+          decrypted
+        )
+      );
+    }
+
+    /*
+     * ============================================================
      * OUTILS
      * ============================================================
      */
@@ -848,7 +984,8 @@ export default {
       genre,
       era,
       difficulty,
-      number
+      number,
+      answerKey
     }) {
       const questions = [];
 
@@ -1253,8 +1390,33 @@ export default {
       diagnostics.questionsCreated =
         questions.length;
 
+      const publicQuestions =
+        await Promise.all(
+          questions.map(
+            async q => {
+              const token =
+                await encryptAnswer(
+                  {
+                    artist: q.artist,
+                    title: q.title
+                  },
+                  answerKey
+                );
+
+              return {
+                lyrics: q.lyrics,
+                year: q.year,
+                difficulty:
+                  q.difficulty,
+                points: q.points,
+                token
+              };
+            }
+          )
+        );
+
       return {
-        questions,
+        questions: publicQuestions,
         diagnostics
       };
 
@@ -1535,12 +1697,16 @@ export default {
         );
 
       try {
+        const answerKey =
+          await getAnswerKey();
+
         const result =
           await buildQuestions({
             genre,
             era,
             difficulty,
-            number
+            number,
+            answerKey
           });
 
         return json({
@@ -1568,6 +1734,113 @@ export default {
             )
           },
           500
+        );
+      }
+    }
+
+    /*
+     * ============================================================
+     * API VALIDATE
+     * ============================================================
+     *
+     * Vérifie la réponse du joueur côté serveur, à partir du
+     * jeton chiffré reçu avec la question. La bonne réponse
+     * n'est jamais renvoyée avant cet appel.
+     */
+
+    if (
+      url.pathname === "/api/validate" &&
+      request.method === "POST"
+    ) {
+      let body;
+
+      try {
+        body = await request.json();
+      } catch {
+        return json(
+          {
+            success: false,
+            error:
+              "Corps de requête JSON invalide."
+          },
+          400
+        );
+      }
+
+      const token =
+        body && body.token;
+
+      if (!token) {
+        return json(
+          {
+            success: false,
+            error:
+              "Jeton de question manquant."
+          },
+          400
+        );
+      }
+
+      try {
+        const answerKey =
+          await getAnswerKey();
+
+        const answer =
+          await decryptAnswer(
+            token,
+            answerKey
+          );
+
+        const playerArtist =
+          normalize(
+            body.artist || ""
+          );
+
+        const playerTitle =
+          normalize(
+            body.title || ""
+          );
+
+        const expectedArtist =
+          normalize(answer.artist);
+
+        const expectedTitle =
+          normalize(answer.title);
+
+        let points = 0;
+
+        if (
+          playerArtist !== "" &&
+          playerArtist ===
+            expectedArtist
+        ) {
+          points++;
+        }
+
+        if (
+          playerTitle !== "" &&
+          playerTitle ===
+            expectedTitle
+        ) {
+          points++;
+        }
+
+        return json({
+          success: true,
+          points,
+          correctArtist:
+            answer.artist,
+          correctTitle:
+            answer.title
+        });
+      } catch (error) {
+        return json(
+          {
+            success: false,
+            error:
+              "Jeton invalide ou expiré."
+          },
+          400
         );
       }
     }
