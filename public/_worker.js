@@ -3,7 +3,6 @@ export default {
 
         const url = new URL(request.url);
 
-
         /*
          * ============================
          * ROUTES
@@ -43,8 +42,7 @@ export default {
 
         /*
          * Toutes les autres requêtes
-         * sont envoyées vers les fichiers
-         * présents dans /public.
+         * sont envoyées vers /public.
          */
 
         return env.ASSETS.fetch(request);
@@ -59,11 +57,47 @@ export default {
  * ============================
  */
 
-const lastFmCache =
-    new Map();
+const lastFmCache = new Map();
 
 const LASTFM_CACHE_DURATION =
     30 * 60 * 1000;
+
+
+/*
+ * ============================
+ * CACHE LRCLIB
+ * ============================
+ */
+
+const lyricsCache = new Map();
+
+const LYRICS_CACHE_DURATION =
+    60 * 60 * 1000;
+
+
+/*
+ * ============================
+ * CACHE MUSICBRAINZ
+ * ============================
+ */
+
+const musicBrainzCache = new Map();
+
+const MUSICBRAINZ_CACHE_DURATION =
+    60 * 60 * 1000;
+
+
+/*
+ * ============================
+ * PARAMÈTRES
+ * ============================
+ */
+
+const MAX_MUSICBRAINZ_RECORDINGS = 12;
+
+const MAX_LYRICS_CANDIDATES = 6;
+
+const REQUEST_TIMEOUT = 5000;
 
 
 /*
@@ -107,14 +141,15 @@ async function searchMusicBrainz(url) {
 
 
         const response =
-            await fetch(
+            await fetchWithTimeout(
                 musicBrainzUrl,
                 {
                     headers: {
                         "User-Agent":
                             "ParolesMysteres/1.0 (Cloudflare Worker)"
                     }
-                }
+                },
+                REQUEST_TIMEOUT
             );
 
 
@@ -144,23 +179,16 @@ async function searchMusicBrainz(url) {
             recordings.map(
                 recording => {
 
-                    const artistCredit =
-                        recording["artist-credit"] || [];
-
-
                     const recordingArtist =
-                        artistCredit.length > 0
-                            ? artistCredit[0].name
-                            : artist;
+                        getRecordingArtist(
+                            recording,
+                            artist
+                        );
 
 
                     const firstReleaseDate =
-                        recording["first-release-date"] ||
-                        (
-                            recording.releases &&
-                            recording.releases.length > 0
-                                ? recording.releases[0]["date"]
-                                : null
+                        getReleaseDate(
+                            recording
                         );
 
 
@@ -241,21 +269,14 @@ async function getLyrics(url) {
 
     try {
 
-        const lrclibUrl =
-            "https://lrclib.net/api/get" +
-            "?artist_name=" +
-            encodeURIComponent(artist) +
-            "&track_name=" +
-            encodeURIComponent(title);
-
-
-        const response =
-            await fetch(
-                lrclibUrl
+        const data =
+            await fetchLyrics(
+                artist,
+                title
             );
 
 
-        if (!response.ok) {
+        if (!data) {
 
             return jsonResponse(
                 {
@@ -263,14 +284,10 @@ async function getLyrics(url) {
                     error:
                         "LRCLIB n'a pas trouvé les paroles."
                 },
-                response.status
+                404
             );
 
         }
-
-
-        const data =
-            await response.json();
 
 
         return jsonResponse(
@@ -293,6 +310,94 @@ async function getLyrics(url) {
             },
             500
         );
+
+    }
+
+}
+
+
+/*
+ * ============================
+ * RÉCUPÉRATION DES PAROLES
+ * ============================
+ */
+
+async function fetchLyrics(
+    artist,
+    title
+) {
+
+    const cacheKey =
+        `lyrics:${normalizeArtistName(artist)}:${normalizeText(title)}`;
+
+
+    const cached =
+        lyricsCache.get(
+            cacheKey
+        );
+
+
+    if (
+        cached &&
+        (
+            Date.now() -
+            cached.timestamp
+        ) <
+        LYRICS_CACHE_DURATION
+    ) {
+
+        return cached.data;
+
+    }
+
+
+    try {
+
+        const lrclibUrl =
+            "https://lrclib.net/api/get" +
+            "?artist_name=" +
+            encodeURIComponent(artist) +
+            "&track_name=" +
+            encodeURIComponent(title);
+
+
+        const response =
+            await fetchWithTimeout(
+                lrclibUrl,
+                {},
+                REQUEST_TIMEOUT
+            );
+
+
+        if (!response.ok) {
+
+            return null;
+
+        }
+
+
+        const data =
+            await response.json();
+
+
+        lyricsCache.set(
+            cacheKey,
+            {
+                timestamp:
+                    Date.now(),
+
+                data:
+                    data
+            }
+        );
+
+
+        return data;
+
+
+    } catch (error) {
+
+        return null;
 
     }
 
@@ -415,7 +520,7 @@ async function getLastFmTrackInfo(
 
 
         const response =
-            await fetch(
+            await fetchWithTimeout(
                 lastFmUrl,
                 {
                     headers: {
@@ -424,16 +529,12 @@ async function getLastFmTrackInfo(
                             "ParolesMysteres/1.0 (Cloudflare Worker)"
 
                     }
-                }
+                },
+                REQUEST_TIMEOUT
             );
 
 
         if (!response.ok) {
-
-            console.error(
-                "Last.fm HTTP error:",
-                response.status
-            );
 
             return null;
 
@@ -445,11 +546,6 @@ async function getLastFmTrackInfo(
 
 
         if (data.error) {
-
-            console.error(
-                "Last.fm error:",
-                data.message
-            );
 
             return null;
 
@@ -467,22 +563,17 @@ async function getLastFmTrackInfo(
         }
 
 
-        const listeners =
-            Number(
-                track.listeners
-            ) || 0;
-
-
-        const playcount =
-            Number(
-                track.playcount
-            ) || 0;
-
-
         const result = {
 
-            listeners,
-            playcount,
+            listeners:
+                Number(
+                    track.listeners
+                ) || 0,
+
+            playcount:
+                Number(
+                    track.playcount
+                ) || 0,
 
             artist:
                 track.artist?.name ||
@@ -520,11 +611,6 @@ async function getLastFmTrackInfo(
 
     } catch (error) {
 
-        console.error(
-            "Erreur Last.fm :",
-            error
-        );
-
         return null;
 
     }
@@ -534,7 +620,7 @@ async function getLastFmTrackInfo(
 
 /*
  * ============================
- * POPULARITÉ / DIFFICULTÉ
+ * DIFFICULTÉ
  * ============================
  */
 
@@ -612,27 +698,75 @@ function matchesDifficulty(
 
 /*
  * ============================
+ * FILTRE DES TITRES
+ * ============================
+ */
+
+function isBadRecordingTitle(
+    title
+) {
+
+    if (!title) {
+
+        return true;
+
+    }
+
+
+    const normalized =
+        normalizeText(
+            title
+        );
+
+
+    const forbiddenTerms = [
+
+        "live",
+        "concert",
+        "remix",
+        "remaster",
+        "remastered",
+        "instrumental",
+        "karaoke",
+        "acapella",
+        "a cappella",
+        "demo",
+        "radio edit",
+        "radio version",
+        "edit",
+        "version",
+        "version longue",
+        "extended",
+        "mono",
+        "stereo",
+        "alternate",
+        "alternative",
+        "reprise",
+        "cover",
+        "tribute",
+        "dub",
+        "mix"
+
+    ];
+
+
+    return forbiddenTerms.some(
+        term =>
+            normalized.includes(
+                normalizeText(term)
+            )
+    );
+
+}
+
+
+/*
+ * ============================
  * CATALOGUE DES ARTISTES
  * ============================
- *
- * 4 catégories uniquement :
- *
- * - Variété française
- * - Pop / Rock français
- * - Rap français
- * - Pop actuelle
- *
- * Tous les artistes sont francophones.
  */
 
 const artistGenres = {
-
-
-    /*
-     * ============================
-     * VARIÉTÉ FRANÇAISE
-     * ============================
-     */
 
     "variete-francaise": [
 
@@ -681,12 +815,6 @@ const artistGenres = {
     ],
 
 
-    /*
-     * ============================
-     * POP / ROCK FRANÇAIS
-     * ============================
-     */
-
     "pop-rock-francais": [
 
         "Téléphone",
@@ -715,12 +843,6 @@ const artistGenres = {
 
     ],
 
-
-    /*
-     * ============================
-     * RAP FRANÇAIS
-     * ============================
-     */
 
     "rap-francais": [
 
@@ -766,12 +888,6 @@ const artistGenres = {
     ],
 
 
-    /*
-     * ============================
-     * POP ACTUELLE
-     * ============================
-     */
-
     "pop-actuelle": [
 
         "Aya Nakamura",
@@ -808,12 +924,6 @@ const artistGenres = {
 };
 
 
-/*
- * ============================
- * TOUS LES ARTISTES
- * ============================
- */
-
 const allArtists =
     [
         ...new Set(
@@ -833,15 +943,6 @@ async function generateQuestions(
     url,
     env
 ) {
-
-    /*
-     * Le paramètre language n'est
-     * volontairement plus utilisé.
-     *
-     * Le jeu est maintenant
-     * exclusivement francophone.
-     */
-
 
     const genre =
         url.searchParams.get("genre") ||
@@ -899,479 +1000,934 @@ async function generateQuestions(
     }
 
 
-    /*
-     * Mélange des artistes.
-     */
-
     shuffleArray(
         artists
     );
 
 
+    /*
+     * Questions finales.
+     */
+
     const questions = [];
 
 
     /*
-     * Pour les difficultés filtrées,
-     * nous avons besoin de davantage
-     * de tentatives.
+     * Pour éviter les doublons.
      */
 
-    const maxAttempts =
-        Math.max(
-            artists.length * 5,
-            number * 10
+    const usedSongs =
+        new Set();
+
+
+    /*
+     * Nombre d'artistes à tester.
+     */
+
+    const maxArtists =
+        Math.min(
+            artists.length,
+            Math.max(
+                number * 3,
+                12
+            )
         );
 
 
-    let attempts = 0;
+    /*
+     * On récupère d'abord les
+     * artistes disponibles.
+     */
+
+    const artistsToSearch =
+        artists.slice(
+            0,
+            maxArtists
+        );
 
 
-    while (
-        questions.length < number &&
-        attempts < maxAttempts
+    /*
+     * ============================
+     * MUSICBRAINZ EN PARALLÈLE
+     * ============================
+     *
+     * On ne fait qu'une requête
+     * MusicBrainz par artiste.
+     */
+
+    const artistResults =
+        await Promise.all(
+            artistsToSearch.map(
+                artist =>
+                    getMusicBrainzRecordings(
+                        artist
+                    )
+            )
+        );
+
+
+    /*
+     * ============================
+     * CANDIDATS
+     * ============================
+     */
+
+    const candidates = [];
+
+
+    for (
+        let i = 0;
+        i < artistResults.length;
+        i++
     ) {
 
-        attempts++;
-
-
-        /*
-         * S'il n'y a plus d'artistes,
-         * on recommence avec le catalogue.
-         */
-
-        if (
-            artists.length === 0
-        ) {
-
-            artists =
-                [...allArtists];
-
-            shuffleArray(
-                artists
-            );
-
-        }
-
-
         const artist =
-            artists.shift();
+            artistsToSearch[i];
 
 
-        if (!artist) {
+        const recordings =
+            artistResults[i];
+
+
+        if (!recordings.length) {
 
             continue;
 
         }
 
 
-        try {
-
-            /*
-             * ============================
-             * MUSICBRAINZ
-             * ============================
-             */
-
-            const query =
-                `artist:"${artist}"`;
-
-            const musicBrainzUrl =
-                "https://musicbrainz.org/ws/2/recording/" +
-                "?query=" +
-                encodeURIComponent(query) +
-                "&fmt=json&limit=20";
+        shuffleArray(
+            recordings
+        );
 
 
-            const musicBrainzResponse =
-                await fetch(
-                    musicBrainzUrl,
-                    {
-                        headers: {
+        /*
+         * On ne garde qu'un nombre
+         * limité de candidats par artiste.
+         */
 
-                            "User-Agent":
-                                "ParolesMysteres/1.0 (Cloudflare Worker)"
+        const limited =
+            recordings.slice(
+                0,
+                MAX_MUSICBRAINZ_RECORDINGS
+            );
 
-                        }
+
+        for (
+            const recording of limited
+        ) {
+
+            const title =
+                recording.title;
+
+
+            if (
+                isBadRecordingTitle(
+                    title
+                )
+            ) {
+
+                continue;
+
+            }
+
+
+            if (
+                !matchesEra(
+                    recording.firstReleaseDate,
+                    era
+                )
+            ) {
+
+                continue;
+
+            }
+
+
+            const recordingArtist =
+                getRecordingArtist(
+                    recording,
+                    artist
+                );
+
+
+            const songKey =
+                `${normalizeArtistName(recordingArtist)}::${normalizeText(title)}`;
+
+
+            if (
+                usedSongs.has(songKey)
+            ) {
+
+                continue;
+
+            }
+
+
+            candidates.push({
+
+                ...recording,
+
+                artist:
+                    recordingArtist,
+
+                songKey
+
+            });
+
+        }
+
+    }
+
+
+    /*
+     * Mélange global des candidats.
+     */
+
+    shuffleArray(
+        candidates
+    );
+
+
+    /*
+     * ============================
+     * DIFFICULTÉ "ALL"
+     * ============================
+     *
+     * Aucun appel Last.fm.
+     */
+
+    if (
+        difficulty === "all"
+    ) {
+
+        /*
+         * On limite le nombre de requêtes
+         * LRCLIB.
+         */
+
+        const lyricCandidates =
+            candidates.slice(
+                0,
+                Math.max(
+                    number * 4,
+                    20
+                )
+            );
+
+
+        /*
+         * LRCLIB en parallèle.
+         */
+
+        const lyricResults =
+            await Promise.all(
+                lyricCandidates.map(
+                    async candidate => {
+
+                        const lyricsData =
+                            await fetchLyrics(
+                                candidate.artist,
+                                candidate.title
+                            );
+
+
+                        return {
+
+                            candidate,
+
+                            lyricsData
+
+                        };
+
                     }
+                )
+            );
+
+
+        for (
+            const result of lyricResults
+        ) {
+
+            if (
+                questions.length >= number
+            ) {
+
+                break;
+
+            }
+
+
+            const candidate =
+                result.candidate;
+
+
+            const data =
+                result.lyricsData;
+
+
+            if (!data) {
+
+                continue;
+
+            }
+
+
+            const fullLyrics =
+                data.plainLyrics ||
+                "";
+
+
+            if (
+                fullLyrics.length < 100
+            ) {
+
+                continue;
+
+            }
+
+
+            const languageDetected =
+                detectLyricsLanguage(
+                    fullLyrics
                 );
 
 
             if (
-                !musicBrainzResponse.ok
+                languageDetected !== "fr"
             ) {
-
-                await sleep(250);
 
                 continue;
 
             }
 
 
-            const musicBrainzData =
-                await musicBrainzResponse.json();
+            const excerpt =
+                createLyricsExcerpt(
+                    fullLyrics,
+                    candidate.title
+                );
 
 
-            const recordings =
-                musicBrainzData.recordings ||
-                [];
+            if (!excerpt) {
+
+                continue;
+
+            }
 
 
             if (
-                recordings.length === 0
+                usedSongs.has(
+                    candidate.songKey
+                )
             ) {
-
-                await sleep(250);
 
                 continue;
 
             }
 
 
-            /*
-             * Mélange des morceaux.
-             */
-
-            shuffleArray(
-                recordings
+            usedSongs.add(
+                candidate.songKey
             );
 
-
-            let validRecording =
-                null;
-
-
-            let detectedLanguage =
-                null;
-
-
-            /*
-             * Plusieurs morceaux sont testés.
-             */
-
-            for (
-                const recording of recordings
-            ) {
-
-                const recordingTitle =
-                    recording.title;
-
-
-                if (!recordingTitle) {
-
-                    continue;
-
-                }
-
-
-                const artistCredit =
-                    recording["artist-credit"] ||
-                    [];
-
-
-                const recordingArtist =
-                    artistCredit.length > 0
-                        ? artistCredit[0].name
-                        : artist;
-
-
-                const releaseDate =
-                    recording["first-release-date"] ||
-                    (
-                        recording.releases &&
-                        recording.releases.length > 0
-                            ? recording.releases[0]["date"]
-                            : null
-                    );
-
-
-                /*
-                 * ============================
-                 * FILTRE ÉPOQUE
-                 * ============================
-                 */
-
-                if (
-                    !matchesEra(
-                        releaseDate,
-                        era
-                    )
-                ) {
-
-                    continue;
-
-                }
-
-
-                /*
-                 * ============================
-                 * LAST.FM
-                 * ============================
-                 */
-
-                const lastFmInfo =
-                    await getLastFmTrackInfo(
-                        env,
-                        recordingArtist,
-                        recordingTitle,
-                        recording.id
-                    );
-
-
-                /*
-                 * Si une difficulté est demandée,
-                 * Last.fm est obligatoire.
-                 */
-
-                if (
-                    difficulty !== "all" &&
-                    !lastFmInfo
-                ) {
-
-                    continue;
-
-                }
-
-
-                if (
-                    !matchesDifficulty(
-                        lastFmInfo,
-                        difficulty
-                    )
-                ) {
-
-                    continue;
-
-                }
-
-
-                /*
-                 * ============================
-                 * LRCLIB
-                 * ============================
-                 */
-
-                try {
-
-                    const lrclibUrl =
-                        "https://lrclib.net/api/get" +
-                        "?artist_name=" +
-                        encodeURIComponent(
-                            recordingArtist
-                        ) +
-                        "&track_name=" +
-                        encodeURIComponent(
-                            recordingTitle
-                        );
-
-
-                    const lyricsResponse =
-                        await fetch(
-                            lrclibUrl
-                        );
-
-
-                    if (
-                        !lyricsResponse.ok
-                    ) {
-
-                        continue;
-
-                    }
-
-
-                    const data =
-                        await lyricsResponse.json();
-
-
-                    const fullLyrics =
-                        data.plainLyrics ||
-                        "";
-
-
-                    /*
-                     * Il faut suffisamment
-                     * de paroles pour créer
-                     * un extrait intéressant.
-                     */
-
-                    if (
-                        !fullLyrics ||
-                        fullLyrics.length < 100
-                    ) {
-
-                        continue;
-
-                    }
-
-
-                    /*
-                     * ============================
-                     * FILTRE LANGUE
-                     * ============================
-                     *
-                     * Le jeu est exclusivement
-                     * francophone.
-                     */
-
-                    const languageDetected =
-                        detectLyricsLanguage(
-                            fullLyrics
-                        );
-
-
-                    if (
-                        languageDetected !== "fr"
-                    ) {
-
-                        continue;
-
-                    }
-
-
-                    /*
-                     * ============================
-                     * EXTRAIT
-                     * ============================
-                     */
-
-                    const excerpt =
-                        createLyricsExcerpt(
-                            fullLyrics,
-                            recordingTitle
-                        );
-
-
-                    if (!excerpt) {
-
-                        continue;
-
-                    }
-
-
-                    validRecording = {
-
-                        artist:
-                            recordingArtist,
-
-                        title:
-                            recordingTitle,
-
-                        year:
-                            releaseDate,
-
-                        lyrics:
-                            excerpt,
-
-                        language:
-                            languageDetected,
-
-                        popularity:
-                            lastFmInfo
-                                ? lastFmInfo.listeners
-                                : null,
-
-                        playcount:
-                            lastFmInfo
-                                ? lastFmInfo.playcount
-                                : null,
-
-                        lastFmUrl:
-                            lastFmInfo
-                                ? lastFmInfo.url
-                                : null
-
-                    };
-
-
-                    detectedLanguage =
-                        languageDetected;
-
-
-                    break;
-
-
-                } catch (error) {
-
-                    continue;
-
-                }
-
-            }
-
-
-            /*
-             * Aucun morceau valide.
-             */
-
-            if (
-                !validRecording
-            ) {
-
-                await sleep(250);
-
-                continue;
-
-            }
-
-
-            /*
-             * ============================
-             * AJOUT DE LA QUESTION
-             * ============================
-             */
 
             questions.push({
 
                 artist:
-                    validRecording.artist,
+                    candidate.artist,
 
                 title:
-                    validRecording.title,
+                    candidate.title,
 
                 lyrics:
-                    validRecording.lyrics,
+                    excerpt,
 
                 difficulty:
                     difficulty,
 
                 year:
-                    validRecording.year,
+                    candidate.firstReleaseDate,
 
                 language:
-                    detectedLanguage,
+                    "fr",
 
                 genre:
                     genre,
 
                 popularity:
-                    validRecording.popularity,
+                    null,
 
                 playcount:
-                    validRecording.playcount,
+                    null,
 
                 lastFmUrl:
-                    validRecording.lastFmUrl
+                    null
 
             });
 
+        }
 
-            /*
-             * Petite pause pour éviter
-             * de surcharger les services.
-             */
+    } else {
 
-            await sleep(250);
+        /*
+         * ============================
+         * DIFFICULTÉ FILTRÉE
+         * ============================
+         *
+         * Last.fm est nécessaire.
+         */
 
-
-        } catch (error) {
-
-            console.error(
-                "Erreur génération question :",
-                error
+        const popularityCandidates =
+            candidates.slice(
+                0,
+                Math.max(
+                    number * 5,
+                    25
+                )
             );
 
-            await sleep(250);
+
+        /*
+         * Last.fm en parallèle.
+         */
+
+        const popularityResults =
+            await Promise.all(
+                popularityCandidates.map(
+                    async candidate => {
+
+                        const lastFmInfo =
+                            await getLastFmTrackInfo(
+                                env,
+                                candidate.artist,
+                                candidate.title,
+                                candidate.id
+                            );
+
+
+                        return {
+
+                            candidate,
+
+                            lastFmInfo
+
+                        };
+
+                    }
+                )
+            );
+
+
+        /*
+         * On garde uniquement
+         * les chansons correspondant
+         * à la difficulté.
+         */
+
+        const difficultyCandidates =
+            popularityResults.filter(
+                result =>
+                    matchesDifficulty(
+                        result.lastFmInfo,
+                        difficulty
+                    )
+            );
+
+
+        /*
+         * LRCLIB en parallèle.
+         */
+
+        const lyricCandidates =
+            difficultyCandidates.slice(
+                0,
+                Math.max(
+                    number * 3,
+                    15
+                )
+            );
+
+
+        const lyricResults =
+            await Promise.all(
+                lyricCandidates.map(
+                    async result => {
+
+                        const lyricsData =
+                            await fetchLyrics(
+                                result.candidate.artist,
+                                result.candidate.title
+                            );
+
+
+                        return {
+
+                            ...result,
+
+                            lyricsData
+
+                        };
+
+                    }
+                )
+            );
+
+
+        for (
+            const result of lyricResults
+        ) {
+
+            if (
+                questions.length >= number
+            ) {
+
+                break;
+
+            }
+
+
+            const candidate =
+                result.candidate;
+
+
+            const data =
+                result.lyricsData;
+
+
+            if (!data) {
+
+                continue;
+
+            }
+
+
+            const fullLyrics =
+                data.plainLyrics ||
+                "";
+
+
+            if (
+                fullLyrics.length < 100
+            ) {
+
+                continue;
+
+            }
+
+
+            const languageDetected =
+                detectLyricsLanguage(
+                    fullLyrics
+                );
+
+
+            if (
+                languageDetected !== "fr"
+            ) {
+
+                continue;
+
+            }
+
+
+            const excerpt =
+                createLyricsExcerpt(
+                    fullLyrics,
+                    candidate.title
+                );
+
+
+            if (!excerpt) {
+
+                continue;
+
+            }
+
+
+            if (
+                usedSongs.has(
+                    candidate.songKey
+                )
+            ) {
+
+                continue;
+
+            }
+
+
+            usedSongs.add(
+                candidate.songKey
+            );
+
+
+            questions.push({
+
+                artist:
+                    candidate.artist,
+
+                title:
+                    candidate.title,
+
+                lyrics:
+                    excerpt,
+
+                difficulty:
+                    difficulty,
+
+                year:
+                    candidate.firstReleaseDate,
+
+                language:
+                    "fr",
+
+                genre:
+                    genre,
+
+                popularity:
+                    result.lastFmInfo
+                        ? result.lastFmInfo.listeners
+                        : null,
+
+                playcount:
+                    result.lastFmInfo
+                        ? result.lastFmInfo.playcount
+                        : null,
+
+                lastFmUrl:
+                    result.lastFmInfo
+                        ? result.lastFmInfo.url
+                        : null
+
+            });
+
+        }
+
+    }
+
+
+    /*
+     * ============================
+     * SECONDE CHANCE
+     * ============================
+     *
+     * Si trop peu de questions ont
+     * été trouvées, on tente quelques
+     * candidats supplémentaires.
+     */
+
+    if (
+        questions.length < number
+    ) {
+
+        const remainingCandidates =
+            candidates.filter(
+                candidate =>
+                    !usedSongs.has(
+                        candidate.songKey
+                    )
+            );
+
+
+        const additional =
+            remainingCandidates.slice(
+                0,
+                10
+            );
+
+
+        /*
+         * Pour les difficultés filtrées,
+         * on repasse par Last.fm.
+         */
+
+        if (
+            difficulty !== "all"
+        ) {
+
+            const additionalResults =
+                await Promise.all(
+                    additional.map(
+                        async candidate => {
+
+                            const lastFmInfo =
+                                await getLastFmTrackInfo(
+                                    env,
+                                    candidate.artist,
+                                    candidate.title,
+                                    candidate.id
+                                );
+
+
+                            if (
+                                !matchesDifficulty(
+                                    lastFmInfo,
+                                    difficulty
+                                )
+                            ) {
+
+                                return null;
+
+                            }
+
+
+                            const lyricsData =
+                                await fetchLyrics(
+                                    candidate.artist,
+                                    candidate.title
+                                );
+
+
+                            return {
+
+                                candidate,
+
+                                lastFmInfo,
+
+                                lyricsData
+
+                            };
+
+                        }
+                    )
+                );
+
+
+            for (
+                const result of additionalResults
+            ) {
+
+                if (
+                    !result ||
+                    questions.length >= number
+                ) {
+
+                    break;
+
+                }
+
+
+                const data =
+                    result.lyricsData;
+
+
+                if (!data) {
+
+                    continue;
+
+                }
+
+
+                const fullLyrics =
+                    data.plainLyrics ||
+                    "";
+
+
+                if (
+                    fullLyrics.length < 100
+                ) {
+
+                    continue;
+
+                }
+
+
+                if (
+                    detectLyricsLanguage(
+                        fullLyrics
+                    ) !== "fr"
+                ) {
+
+                    continue;
+
+                }
+
+
+                const excerpt =
+                    createLyricsExcerpt(
+                        fullLyrics,
+                        result.candidate.title
+                    );
+
+
+                if (!excerpt) {
+
+                    continue;
+
+                }
+
+
+                usedSongs.add(
+                    result.candidate.songKey
+                );
+
+
+                questions.push({
+
+                    artist:
+                        result.candidate.artist,
+
+                    title:
+                        result.candidate.title,
+
+                    lyrics:
+                        excerpt,
+
+                    difficulty:
+                        difficulty,
+
+                    year:
+                        result.candidate.firstReleaseDate,
+
+                    language:
+                        "fr",
+
+                    genre:
+                        genre,
+
+                    popularity:
+                        result.lastFmInfo.listeners,
+
+                    playcount:
+                        result.lastFmInfo.playcount,
+
+                    lastFmUrl:
+                        result.lastFmInfo.url
+
+                });
+
+            }
+
+        } else {
+
+            const additionalResults =
+                await Promise.all(
+                    additional.map(
+                        async candidate => {
+
+                            const lyricsData =
+                                await fetchLyrics(
+                                    candidate.artist,
+                                    candidate.title
+                                );
+
+
+                            return {
+
+                                candidate,
+
+                                lyricsData
+
+                            };
+
+                        }
+                    )
+                );
+
+
+            for (
+                const result of additionalResults
+            ) {
+
+                if (
+                    questions.length >= number
+                ) {
+
+                    break;
+
+                }
+
+
+                const data =
+                    result.lyricsData;
+
+
+                if (!data) {
+
+                    continue;
+
+                }
+
+
+                const fullLyrics =
+                    data.plainLyrics ||
+                    "";
+
+
+                if (
+                    fullLyrics.length < 100
+                ) {
+
+                    continue;
+
+                }
+
+
+                if (
+                    detectLyricsLanguage(
+                        fullLyrics
+                    ) !== "fr"
+                ) {
+
+                    continue;
+
+                }
+
+
+                const excerpt =
+                    createLyricsExcerpt(
+                        fullLyrics,
+                        result.candidate.title
+                    );
+
+
+                if (!excerpt) {
+
+                    continue;
+
+                }
+
+
+                usedSongs.add(
+                    result.candidate.songKey
+                );
+
+
+                questions.push({
+
+                    artist:
+                        result.candidate.artist,
+
+                    title:
+                        result.candidate.title,
+
+                    lyrics:
+                        excerpt,
+
+                    difficulty:
+                        difficulty,
+
+                    year:
+                        result.candidate.firstReleaseDate,
+
+                    language:
+                        "fr",
+
+                    genre:
+                        genre,
+
+                    popularity:
+                        null,
+
+                    playcount:
+                        null,
+
+                    lastFmUrl:
+                        null
+
+                });
+
+            }
 
         }
 
@@ -1404,11 +1960,171 @@ async function generateQuestions(
 
 /*
  * ============================
- * DÉTECTION DE LANGUE
+ * RÉCUPÉRATION MUSICBRAINZ
  * ============================
- *
- * Détection volontairement orientée
- * vers le français.
+ */
+
+async function getMusicBrainzRecordings(
+    artist
+) {
+
+    const cacheKey =
+        `mb:${normalizeArtistName(artist)}`;
+
+
+    const cached =
+        musicBrainzCache.get(
+            cacheKey
+        );
+
+
+    if (
+        cached &&
+        (
+            Date.now() -
+            cached.timestamp
+        ) <
+        MUSICBRAINZ_CACHE_DURATION
+    ) {
+
+        return cached.data;
+
+    }
+
+
+    try {
+
+        const query =
+            `artist:"${artist}"`;
+
+        const musicBrainzUrl =
+            "https://musicbrainz.org/ws/2/recording/" +
+            "?query=" +
+            encodeURIComponent(query) +
+            "&fmt=json&limit=" +
+            MAX_MUSICBRAINZ_RECORDINGS;
+
+
+        const response =
+            await fetchWithTimeout(
+                musicBrainzUrl,
+                {
+                    headers: {
+
+                        "User-Agent":
+                            "ParolesMysteres/1.0 (Cloudflare Worker)"
+
+                    }
+                },
+                REQUEST_TIMEOUT
+            );
+
+
+        if (!response.ok) {
+
+            return [];
+
+        }
+
+
+        const data =
+            await response.json();
+
+
+        const recordings =
+            data.recordings || [];
+
+
+        musicBrainzCache.set(
+            cacheKey,
+            {
+                timestamp:
+                    Date.now(),
+
+                data:
+                    recordings
+            }
+        );
+
+
+        return recordings;
+
+
+    } catch (error) {
+
+        return [];
+
+    }
+
+}
+
+
+/*
+ * ============================
+ * ARTISTE MUSICBRAINZ
+ * ============================
+ */
+
+function getRecordingArtist(
+    recording,
+    fallbackArtist
+) {
+
+    const artistCredit =
+        recording["artist-credit"] ||
+        [];
+
+
+    if (
+        artistCredit.length === 0
+    ) {
+
+        return fallbackArtist;
+
+    }
+
+
+    return artistCredit
+        .map(
+            credit =>
+                credit.name ||
+                credit.artist?.name ||
+                ""
+        )
+        .join("")
+        .trim() ||
+        fallbackArtist;
+
+}
+
+
+/*
+ * ============================
+ * DATE MUSICBRAINZ
+ * ============================
+ */
+
+function getReleaseDate(
+    recording
+) {
+
+    return (
+        recording["first-release-date"] ||
+        (
+            recording.releases &&
+            recording.releases.length > 0
+                ? recording.releases[0]["date"]
+                : null
+        )
+    );
+
+}
+
+
+/*
+ * ============================
+ * DÉTECTION LANGUE
+ * ============================
  */
 
 function detectLyricsLanguage(
@@ -1456,7 +2172,7 @@ function detectLyricsLanguage(
         "ses",
         "notre",
         "votre",
-        "être",
+        "etre",
         "avoir",
         "faire",
         "tout",
@@ -1494,9 +2210,9 @@ function detectLyricsLanguage(
         "pourquoi",
         "parce",
         "aussi",
-        "très",
-        "été",
-        "était",
+        "tres",
+        "ete",
+        "etait",
         "serai",
         "seras",
         "serait",
@@ -1588,6 +2304,7 @@ function detectLyricsLanguage(
 
 
     let frenchScore = 0;
+
     let englishScore = 0;
 
 
@@ -1616,8 +2333,7 @@ function detectLyricsLanguage(
 
 
     /*
-     * Les accents français apportent
-     * un bonus.
+     * Bonus accents.
      */
 
     const accentMatches =
@@ -1637,11 +2353,6 @@ function detectLyricsLanguage(
     }
 
 
-    /*
-     * Si l'anglais domine,
-     * le morceau est rejeté.
-     */
-
     if (
         englishScore > frenchScore
     ) {
@@ -1650,11 +2361,6 @@ function detectLyricsLanguage(
 
     }
 
-
-    /*
-     * Il faut au minimum quelques
-     * indicateurs français.
-     */
 
     if (
         frenchScore >= 3 &&
@@ -1673,7 +2379,7 @@ function detectLyricsLanguage(
 
 /*
  * ============================
- * CORRESPONDANCE D'ÉPOQUE
+ * ÉPOQUE
  * ============================
  */
 
@@ -1773,7 +2479,7 @@ function matchesEra(
 
 /*
  * ============================
- * CRÉATION DE L'EXTRAIT
+ * EXTRAIT DE PAROLES
  * ============================
  */
 
@@ -1813,10 +2519,6 @@ function createLyricsExcerpt(
     const candidates = [];
 
 
-    /*
-     * Création des couples de lignes.
-     */
-
     for (
         let i = 0;
         i < lines.length - 1;
@@ -1840,10 +2542,6 @@ function createLyricsExcerpt(
             );
 
 
-        /*
-         * Ne pas révéler le titre.
-         */
-
         if (
             normalizedTitle.length >= 4 &&
             normalizedCombined.includes(
@@ -1855,10 +2553,6 @@ function createLyricsExcerpt(
 
         }
 
-
-        /*
-         * Évite deux lignes identiques.
-         */
 
         if (
             normalizeText(
@@ -1873,11 +2567,6 @@ function createLyricsExcerpt(
 
         }
 
-
-        /*
-         * Évite les extraits contenant
-         * trop de répétitions.
-         */
 
         if (
             hasTooManyRepeatedWords(
@@ -1906,10 +2595,6 @@ function createLyricsExcerpt(
     }
 
 
-    /*
-     * Sélection aléatoire.
-     */
-
     const randomIndex =
         Math.floor(
             Math.random() *
@@ -1926,7 +2611,7 @@ function createLyricsExcerpt(
 
 /*
  * ============================
- * DÉTECTION DES RÉPÉTITIONS
+ * RÉPÉTITIONS
  * ============================
  */
 
@@ -2080,21 +2765,46 @@ function shuffleArray(
 
 /*
  * ============================
- * PAUSE
+ * TIMEOUT FETCH
  * ============================
  */
 
-function sleep(
-    milliseconds
+async function fetchWithTimeout(
+    url,
+    options = {},
+    timeout = 5000
 ) {
 
-    return new Promise(
-        resolve =>
-            setTimeout(
-                resolve,
-                milliseconds
-            )
-    );
+    const controller =
+        new AbortController();
+
+
+    const timeoutId =
+        setTimeout(
+            () =>
+                controller.abort(),
+            timeout
+        );
+
+
+    try {
+
+        return await fetch(
+            url,
+            {
+                ...options,
+                signal:
+                    controller.signal
+            }
+        );
+
+    } finally {
+
+        clearTimeout(
+            timeoutId
+        );
+
+    }
 
 }
 
