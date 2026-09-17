@@ -1,4 +1,3 @@
-```javascript
 document.addEventListener("DOMContentLoaded", async function () {
 
     const lyricsElement =
