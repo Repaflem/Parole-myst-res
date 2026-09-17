@@ -244,6 +244,517 @@ async function getLyrics(url) {
 
 
 /* =========================================================
+   ARTISTES ET GENRES
+   ========================================================= */
+
+/*
+ * Un artiste peut appartenir à plusieurs genres.
+ *
+ * Le filtre de genre est donc basé sur ce catalogue
+ * contrôlé plutôt que sur une interprétation aléatoire
+ * des tags MusicBrainz.
+ */
+
+const artistGenres = {
+
+    /* =====================================================
+       CHANSON FRANÇAISE
+       ===================================================== */
+
+    "chanson-francaise": [
+
+        "Jean-Jacques Goldman",
+        "Francis Cabrel",
+        "Johnny Hallyday",
+        "Michel Sardou",
+        "Daniel Balavoine",
+        "France Gall",
+        "Dalida",
+        "Charles Aznavour",
+        "Édith Piaf",
+        "Jacques Brel",
+        "Renaud",
+        "Téléphone",
+        "Joe Dassin",
+        "Michel Berger",
+        "Alain Souchon",
+        "Laurent Voulzy",
+        "Serge Gainsbourg",
+        "Georges Brassens",
+        "Maxime Le Forestier",
+        "Patrick Bruel",
+        "Florent Pagny",
+        "Calogero",
+        "Christophe Maé",
+        "Zaz",
+        "Vianney",
+        "Julien Doré",
+        "Clara Luciani",
+        "Louane",
+        "Kendji Girac",
+        "M. Pokora",
+        "Patrick Fiori",
+        "Garou",
+        "Pascal Obispo",
+        "Amel Bent",
+        "Christophe Willem",
+        "Soprano",
+        "Grand Corps Malade",
+        "Zaho de Sagazan",
+        "Slimane"
+    ],
+
+
+    /* =====================================================
+       POP
+       ===================================================== */
+
+    "pop": [
+
+        "Stromae",
+        "Angèle",
+        "Louane",
+        "Vianney",
+        "Clara Luciani",
+        "Julien Doré",
+        "Zaz",
+        "Calogero",
+        "Christophe Maé",
+        "Aya Nakamura",
+
+        "Michael Jackson",
+        "The Weeknd",
+        "Coldplay",
+        "Ed Sheeran",
+        "Adele",
+        "Lady Gaga",
+        "Rihanna",
+        "Bruno Mars",
+        "Madonna",
+        "Taylor Swift",
+        "Billie Eilish",
+        "Justin Timberlake",
+        "Britney Spears",
+        "Katy Perry",
+        "Maroon 5",
+        "Imagine Dragons",
+        "Dua Lipa",
+        "Harry Styles",
+        "Justin Bieber",
+        "Sia",
+        "Miley Cyrus",
+        "P!nk",
+        "Shakira",
+        "Beyoncé",
+        "Christina Aguilera",
+        "Kesha",
+        "Ariana Grande",
+        "Selena Gomez",
+        "Sam Smith"
+    ],
+
+
+    /* =====================================================
+       ROCK
+       ===================================================== */
+
+    "rock": [
+
+        "Indochine",
+        "Téléphone",
+        "Johnny Hallyday",
+        "Noir Désir",
+        "Louise Attaque",
+        "Mickey 3D",
+        "Superbus",
+        "Kyo",
+
+        "Queen",
+        "The Beatles",
+        "The Rolling Stones",
+        "David Bowie",
+        "Oasis",
+        "Nirvana",
+        "The Police",
+        "Red Hot Chili Peppers",
+        "Green Day",
+        "Linkin Park",
+        "U2",
+        "AC/DC",
+        "Bon Jovi",
+        "Aerosmith",
+        "Guns N' Roses",
+        "The Cranberries",
+        "Muse",
+        "Radiohead",
+        "Foo Fighters",
+        "Arctic Monkeys",
+        "The Killers",
+        "Maroon 5",
+        "Imagine Dragons",
+        "Coldplay",
+        "Elton John",
+        "Lenny Kravitz",
+        "Sting"
+    ],
+
+
+    /* =====================================================
+       RAP / HIP-HOP
+       ===================================================== */
+
+    "rap": [
+
+        "Orelsan",
+        "Soprano",
+        "Bigflo & Oli",
+        "Maître Gims",
+        "Gims",
+        "Nekfeu",
+        "Booba",
+        "Jul",
+        "Ninho",
+        "SCH",
+        "PNL",
+        "Vald",
+        "Damso",
+        "Lomepal",
+        "Kery James",
+        "MC Solaar",
+        "IAM",
+        "NTM",
+        "Diam's",
+        "Stromae",
+        "Aya Nakamura",
+
+        "Eminem",
+        "Dr. Dre",
+        "Snoop Dogg",
+        "50 Cent",
+        "Tupac Shakur",
+        "The Notorious B.I.G.",
+        "Jay-Z",
+        "Kanye West",
+        "Kendrick Lamar",
+        "Drake",
+        "Nicki Minaj",
+        "Cardi B",
+        "Post Malone",
+        "Macklemore",
+        "Will Smith",
+        "Coolio",
+        "Black Eyed Peas",
+        "Beastie Boys"
+    ],
+
+
+    /* =====================================================
+       DISCO / FUNK
+       ===================================================== */
+
+    "disco-funk": [
+
+        "France Gall",
+        "Dalida",
+        "Claude François",
+        "Sheila",
+        "Ottawan",
+        "Patrick Hernandez",
+        "Cerrone",
+
+        "ABBA",
+        "Earth, Wind & Fire",
+        "Kool & The Gang",
+        "Chic",
+        "Bee Gees",
+        "Donna Summer",
+        "Gloria Gaynor",
+        "Village People",
+        "Boney M.",
+        "KC and the Sunshine Band",
+        "Sister Sledge",
+        "Chaka Khan",
+        "Stevie Wonder",
+        "Michael Jackson",
+        "Prince",
+        "James Brown",
+        "Diana Ross",
+        "The Jacksons",
+        "Commodores",
+        "Rick James",
+        "George Clinton"
+    ],
+
+
+    /* =====================================================
+       ÉLECTRO
+       ===================================================== */
+
+    "electro": [
+
+        "Daft Punk",
+        "David Guetta",
+        "Justice",
+        "Stromae",
+        "Kavinsky",
+        "Martin Solveig",
+        "Bob Sinclar",
+        "Madeon",
+        "M83",
+        "Air",
+        "Cassius",
+        "The Blaze",
+        "Breakbot",
+        "Étienne de Crécy",
+
+        "The Chemical Brothers",
+        "The Prodigy",
+        "Fatboy Slim",
+        "Calvin Harris",
+        "Avicii",
+        "Deadmau5",
+        "Skrillex",
+        "Disclosure",
+        "Swedish House Mafia",
+        "Tiesto",
+        "Martin Garrix",
+        "Kygo",
+        "Alan Walker",
+        "Marshmello",
+        "Major Lazer",
+        "Clean Bandit",
+        "Pet Shop Boys",
+        "Depeche Mode"
+    ],
+
+
+    /* =====================================================
+       METAL
+       ===================================================== */
+
+    "metal": [
+
+        "Metallica",
+        "Iron Maiden",
+        "Black Sabbath",
+        "Judas Priest",
+        "Megadeth",
+        "Slayer",
+        "Anthrax",
+        "Pantera",
+        "Slipknot",
+        "Rammstein",
+        "System of a Down",
+        "Korn",
+        "Linkin Park",
+        "Evanescence",
+        "Nightwish",
+        "Within Temptation",
+        "Sabaton",
+        "Bring Me the Horizon",
+        "Avenged Sevenfold",
+        "Disturbed",
+        "Tool",
+        "Gojira",
+        "Mastodon",
+        "Dream Theater",
+        "Scorpions",
+        "Kiss",
+        "Europe",
+        "Alice Cooper",
+        "Marilyn Manson",
+        "Papa Roach"
+    ],
+
+
+    /* =====================================================
+       INTERNATIONAL
+       ===================================================== */
+
+    "international": [
+
+        "Queen",
+        "Michael Jackson",
+        "Eminem",
+        "The Weeknd",
+        "Coldplay",
+        "Ed Sheeran",
+        "Adele",
+        "Lady Gaga",
+        "Rihanna",
+        "Bruno Mars",
+        "David Bowie",
+        "ABBA",
+        "Depeche Mode",
+        "Oasis",
+        "Nirvana",
+        "The Beatles",
+        "The Rolling Stones",
+        "Elton John",
+        "Madonna",
+        "Taylor Swift",
+        "Billie Eilish",
+        "Justin Timberlake",
+        "Britney Spears",
+        "Katy Perry",
+        "Maroon 5",
+        "Linkin Park",
+        "Green Day",
+        "Red Hot Chili Peppers",
+        "Imagine Dragons",
+        "The Police",
+        "U2",
+        "AC/DC",
+        "Bon Jovi",
+        "Aerosmith",
+        "Guns N' Roses",
+        "Metallica",
+        "Iron Maiden",
+        "Rammstein",
+        "Daft Punk",
+        "David Guetta",
+        "The Chemical Brothers",
+        "Eminem",
+        "Drake",
+        "Beyoncé",
+        "Shakira",
+        "Dua Lipa",
+        "Harry Styles",
+        "Justin Bieber"
+    ]
+};
+
+
+/* =========================================================
+   ARTISTES FRANÇAIS
+   ========================================================= */
+
+const frenchArtists = [
+
+    "Stromae",
+    "Indochine",
+    "Mylène Farmer",
+    "Jean-Jacques Goldman",
+    "Francis Cabrel",
+    "Johnny Hallyday",
+    "Michel Sardou",
+    "Daniel Balavoine",
+    "France Gall",
+    "Dalida",
+    "Charles Aznavour",
+    "Édith Piaf",
+    "Jacques Brel",
+    "Renaud",
+    "Téléphone",
+    "Louane",
+    "Angèle",
+    "Vianney",
+    "Orelsan",
+    "Bigflo & Oli",
+    "Soprano",
+    "Maître Gims",
+    "Kendji Girac",
+    "Julien Doré",
+    "Zaz",
+    "Christophe Maé",
+    "Calogero",
+    "M. Pokora",
+    "Clara Luciani",
+    "Aya Nakamura",
+    "Nekfeu",
+    "Booba",
+    "Jul",
+    "Ninho",
+    "SCH",
+    "PNL",
+    "Damso",
+    "Kery James",
+    "MC Solaar",
+    "IAM",
+    "NTM",
+    "Diam's",
+    "Daft Punk",
+    "David Guetta",
+    "Justice",
+    "Kavinsky",
+    "Martin Solveig",
+    "Bob Sinclar",
+    "M83",
+    "Air",
+    "Metallica",
+    "Gojira",
+    "Zaho de Sagazan",
+    "Slimane"
+];
+
+
+/* =========================================================
+   ARTISTES ANGLAIS / INTERNATIONAUX
+   ========================================================= */
+
+const englishArtists = [
+
+    "Queen",
+    "Michael Jackson",
+    "Eminem",
+    "The Weeknd",
+    "Coldplay",
+    "Ed Sheeran",
+    "Adele",
+    "Lady Gaga",
+    "Rihanna",
+    "Bruno Mars",
+    "David Bowie",
+    "ABBA",
+    "Depeche Mode",
+    "Oasis",
+    "Nirvana",
+    "The Beatles",
+    "The Rolling Stones",
+    "Elton John",
+    "Madonna",
+    "Taylor Swift",
+    "Billie Eilish",
+    "Justin Timberlake",
+    "Britney Spears",
+    "Katy Perry",
+    "Maroon 5",
+    "Linkin Park",
+    "Green Day",
+    "Red Hot Chili Peppers",
+    "Imagine Dragons",
+    "The Police",
+    "U2",
+    "AC/DC",
+    "Bon Jovi",
+    "Aerosmith",
+    "Guns N' Roses",
+    "Metallica",
+    "Iron Maiden",
+    "Black Sabbath",
+    "Rammstein",
+    "Slipknot",
+    "System of a Down",
+    "Evanescence",
+    "Scorpions",
+    "Daft Punk",
+    "David Guetta",
+    "The Chemical Brothers",
+    "Calvin Harris",
+    "Avicii",
+    "Skrillex",
+    "Drake",
+    "Beyoncé",
+    "Shakira",
+    "Dua Lipa",
+    "Harry Styles",
+    "Justin Bieber",
+    "Ariana Grande",
+    "Sam Smith"
+];
+
+
+/* =========================================================
    GÉNÉRATION DES QUESTIONS
    ========================================================= */
 
@@ -281,113 +792,100 @@ async function generateQuestions(url) {
 
 
     /* =====================================================
-       ARTISTES FRANÇAIS
-       ===================================================== */
-
-    const frenchArtists = [
-
-        "Stromae",
-        "Indochine",
-        "Mylène Farmer",
-        "Jean-Jacques Goldman",
-        "Francis Cabrel",
-        "Johnny Hallyday",
-        "Michel Sardou",
-        "Daniel Balavoine",
-        "France Gall",
-        "Dalida",
-        "Charles Aznavour",
-        "Édith Piaf",
-        "Jacques Brel",
-        "Renaud",
-        "Téléphone",
-        "Louane",
-        "Angèle",
-        "Vianney",
-        "Orelsan",
-        "Bigflo & Oli",
-        "Soprano",
-        "Maître Gims",
-        "Kendji Girac",
-        "Julien Doré",
-        "Zaz",
-        "Christophe Maé",
-        "Calogero",
-        "M. Pokora",
-        "Clara Luciani",
-        "Aya Nakamura"
-    ];
-
-
-    /* =====================================================
-       ARTISTES ANGLAIS
-       ===================================================== */
-
-    const englishArtists = [
-
-        "Queen",
-        "Michael Jackson",
-        "Eminem",
-        "The Weeknd",
-        "Coldplay",
-        "Ed Sheeran",
-        "Adele",
-        "Lady Gaga",
-        "Rihanna",
-        "Bruno Mars",
-        "David Bowie",
-        "ABBA",
-        "Depeche Mode",
-        "Oasis",
-        "Nirvana",
-        "The Beatles",
-        "The Rolling Stones",
-        "Elton John",
-        "Madonna",
-        "Taylor Swift",
-        "Billie Eilish",
-        "Justin Timberlake",
-        "Britney Spears",
-        "Katy Perry",
-        "Maroon 5",
-        "Linkin Park",
-        "Green Day",
-        "Red Hot Chili Peppers",
-        "Imagine Dragons",
-        "The Police"
-    ];
-
-
-    /* =====================================================
-       CHOIX DE LA LANGUE
+       CONSTRUCTION DU CATALOGUE SELON LE GENRE
        ===================================================== */
 
     let artists = [];
 
-    if (language === "fr") {
 
-        artists = [
-            ...frenchArtists
-        ];
+    if (genre === "all") {
 
-    } else if (language === "en") {
+        /*
+         * Tous les artistes compatibles avec la langue.
+         */
 
-        artists = [
-            ...englishArtists
-        ];
+        if (language === "fr") {
+
+            artists = [
+                ...frenchArtists
+            ];
+
+        } else if (language === "en") {
+
+            artists = [
+                ...englishArtists
+            ];
+
+        } else {
+
+            artists = [
+                ...frenchArtists,
+                ...englishArtists
+            ];
+        }
 
     } else {
 
-        artists = [
-            ...frenchArtists,
-            ...englishArtists
-        ];
+        /*
+         * On récupère uniquement les artistes
+         * appartenant au genre demandé.
+         */
+
+        const genreArtists =
+            artistGenres[genre] || [];
+
+
+        if (language === "fr") {
+
+            artists =
+                genreArtists.filter(
+                    artist =>
+                        frenchArtists.includes(
+                            artist
+                        )
+                );
+
+        } else if (language === "en") {
+
+            artists =
+                genreArtists.filter(
+                    artist =>
+                        englishArtists.includes(
+                            artist
+                        )
+                );
+
+        } else {
+
+            artists = [
+                ...genreArtists
+            ];
+        }
     }
 
 
-    /* =====================================================
-       MÉLANGE DES ARTISTES
-       ===================================================== */
+    /*
+     * Suppression des doublons.
+     */
+
+    artists =
+        [
+            ...new Map(
+                artists.map(
+                    artist => [
+                        normalizeArtistName(
+                            artist
+                        ),
+                        artist
+                    ]
+                )
+            ).values()
+        ];
+
+
+    /*
+     * Mélange aléatoire.
+     */
 
     artists =
         shuffleArray(
@@ -482,14 +980,13 @@ async function generateQuestions(url) {
                 );
 
 
-            /*
-             * On cherche une seule chanson
-             * valable pour cet artiste.
-             */
-
             let artistQuestion =
                 null;
 
+
+            /* =================================================
+               RECHERCHE D'UNE CHANSON
+               ================================================= */
 
             for (
                 const recording
@@ -520,9 +1017,9 @@ async function generateQuestions(url) {
                 }
 
 
-                /* =============================================
-                   FILTRE ÉPOQUE
-                   ============================================= */
+                /*
+                 * Vérification de l'époque.
+                 */
 
                 if (
                     !matchesEra(
@@ -534,9 +1031,9 @@ async function generateQuestions(url) {
                 }
 
 
-                /* =============================================
+                /* =================================================
                    RECHERCHE DES PAROLES
-                   ============================================= */
+                   ================================================= */
 
                 const lyricsUrl =
                     "https://lrclib.net/api/get" +
@@ -575,13 +1072,7 @@ async function generateQuestions(url) {
 
 
                 /*
-                 * Création d'un extrait intelligent.
-                 *
-                 * On évite autant que possible :
-                 * - les refrains répétés
-                 * - le titre de la chanson
-                 * - les lignes trop courtes
-                 * - les passages trop évidents
+                 * Création de l'extrait.
                  */
 
                 const lyrics =
@@ -643,6 +1134,11 @@ async function generateQuestions(url) {
                 );
             }
 
+
+            /*
+             * Petite pause afin de ne pas bombarder
+             * MusicBrainz.
+             */
 
             await sleep(100);
 
@@ -765,7 +1261,7 @@ function matchesEra(
 
 
 /* =========================================================
-   SÉLECTION DE L'EXTRAIT DE PAROLES
+   SÉLECTION DE L'EXTRAIT
    ========================================================= */
 
 function createLyricsExcerpt(
@@ -793,21 +1289,11 @@ function createLyricsExcerpt(
     }
 
 
-    /*
-     * Nettoyage du titre pour pouvoir détecter
-     * les lignes qui le contiennent.
-     */
-
     const normalizedTitle =
         normalizeText(
             title
         );
 
-
-    /*
-     * On crée des candidats composés
-     * de 2 lignes consécutives.
-     */
 
     const candidates = [];
 
@@ -836,7 +1322,7 @@ function createLyricsExcerpt(
 
 
         /*
-         * Évite les extraits contenant le titre.
+         * Évite le titre de la chanson.
          */
 
         if (
@@ -850,8 +1336,7 @@ function createLyricsExcerpt(
 
 
         /*
-         * Évite les lignes qui semblent
-         * être des répétitions.
+         * Évite deux lignes identiques.
          */
 
         if (
@@ -867,7 +1352,7 @@ function createLyricsExcerpt(
 
 
         /*
-         * Évite les lignes extrêmement courtes.
+         * Évite les phrases trop courtes.
          */
 
         if (
@@ -879,8 +1364,8 @@ function createLyricsExcerpt(
 
 
         /*
-         * Évite les passages contenant
-         * plusieurs mots répétés.
+         * Évite les passages avec beaucoup
+         * de mots répétés.
          */
 
         if (
@@ -893,6 +1378,7 @@ function createLyricsExcerpt(
 
 
         candidates.push({
+
             text:
                 combined,
 
@@ -910,11 +1396,8 @@ function createLyricsExcerpt(
 
 
     /*
-     * On donne une préférence aux passages
-     * situés dans différentes zones du morceau.
-     *
-     * Cela évite notamment de prendre
-     * systématiquement le début.
+     * On préfère les passages situés
+     * au milieu de la chanson.
      */
 
     const preferredCandidates =
@@ -935,10 +1418,6 @@ function createLyricsExcerpt(
             ? preferredCandidates
             : candidates;
 
-
-    /*
-     * Sélection aléatoire.
-     */
 
     const selected =
         pool[
