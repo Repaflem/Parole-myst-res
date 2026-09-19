@@ -28,50 +28,105 @@
 
     <section class="config-sheet">
 
-      <div class="field">
-        <label for="genre">Style musical</label>
-        <select id="genre">
-          <option value="all">Tous les styles</option>
-          <option value="variete-francaise">Variété française</option>
-          <option value="pop-rock-francais">Pop / rock français</option>
-          <option value="rap-francais">Rap français</option>
-          <option value="pop-actuelle">Pop actuelle</option>
-        </select>
-      </div>
+      <fieldset class="option-field">
+        <legend>Style musical</legend>
+        <div class="option-group">
 
-      <div class="field">
-        <label for="era">Époque</label>
-        <select id="era">
-          <option value="all">Toutes les époques</option>
-          <option value="1960-1979">1960 – 1979</option>
-          <option value="1980-1989">1980 – 1989</option>
-          <option value="1990-1999">1990 – 1999</option>
-          <option value="2000-2009">2000 – 2009</option>
-          <option value="2010-2019">2010 – 2019</option>
-          <option value="2020-2026">2020 – 2026</option>
-        </select>
-      </div>
+          <input type="radio" name="genre" id="genre-all" value="all" class="chip-input" checked>
+          <label class="chip" for="genre-all">Tous les styles</label>
 
-      <div class="field">
-        <label for="difficulty">Difficulté</label>
-        <select id="difficulty">
-          <option value="all">Toutes les difficultés</option>
-          <option value="easy">Facile</option>
-          <option value="medium">Moyenne</option>
-          <option value="hard">Difficile</option>
-        </select>
-      </div>
+          <input type="radio" name="genre" id="genre-variete" value="variete-francaise" class="chip-input">
+          <label class="chip" for="genre-variete">Variété française</label>
 
-      <div class="field">
-        <label for="number">Nombre de questions</label>
-        <select id="number">
-          <option value="5">5 questions</option>
-          <option value="10" selected>10 questions</option>
-          <option value="15">15 questions</option>
-          <option value="20">20 questions</option>
-          <option value="30">30 questions</option>
-        </select>
-      </div>
+          <input type="radio" name="genre" id="genre-poprock" value="pop-rock-francais" class="chip-input">
+          <label class="chip" for="genre-poprock">Pop / rock français</label>
+
+          <input type="radio" name="genre" id="genre-rap" value="rap-francais" class="chip-input">
+          <label class="chip" for="genre-rap">Rap français</label>
+
+          <input type="radio" name="genre" id="genre-actuelle" value="pop-actuelle" class="chip-input">
+          <label class="chip" for="genre-actuelle">Pop actuelle</label>
+
+        </div>
+      </fieldset>
+
+      <fieldset class="option-field">
+        <legend>Époque</legend>
+        <div class="option-group">
+
+          <input type="radio" name="era" id="era-all" value="all" class="chip-input" checked>
+          <label class="chip" for="era-all">Toutes</label>
+
+          <input type="radio" name="era" id="era-1" value="1960-1979" class="chip-input">
+          <label class="chip" for="era-1">1960–1979</label>
+
+          <input type="radio" name="era" id="era-2" value="1980-1989" class="chip-input">
+          <label class="chip" for="era-2">1980–1989</label>
+
+          <input type="radio" name="era" id="era-3" value="1990-1999" class="chip-input">
+          <label class="chip" for="era-3">1990–1999</label>
+
+          <input type="radio" name="era" id="era-4" value="2000-2009" class="chip-input">
+          <label class="chip" for="era-4">2000–2009</label>
+
+          <input type="radio" name="era" id="era-5" value="2010-2019" class="chip-input">
+          <label class="chip" for="era-5">2010–2019</label>
+
+          <input type="radio" name="era" id="era-6" value="2020-2026" class="chip-input">
+          <label class="chip" for="era-6">2020–2026</label>
+
+        </div>
+      </fieldset>
+
+      <fieldset class="option-field">
+        <legend>Difficulté</legend>
+        <div class="option-group">
+
+          <input type="radio" name="difficulty" id="difficulty-all" value="all" class="chip-input" checked>
+          <label class="chip" for="difficulty-all">Toutes</label>
+
+          <input type="radio" name="difficulty" id="difficulty-easy" value="easy" class="chip-input">
+          <label class="chip chip-level" for="difficulty-easy">
+            <span class="chip-bars lit-1" aria-hidden="true"><span></span><span></span><span></span></span>
+            Facile
+          </label>
+
+          <input type="radio" name="difficulty" id="difficulty-medium" value="medium" class="chip-input">
+          <label class="chip chip-level" for="difficulty-medium">
+            <span class="chip-bars lit-2" aria-hidden="true"><span></span><span></span><span></span></span>
+            Moyenne
+          </label>
+
+          <input type="radio" name="difficulty" id="difficulty-hard" value="hard" class="chip-input">
+          <label class="chip chip-level" for="difficulty-hard">
+            <span class="chip-bars lit-3" aria-hidden="true"><span></span><span></span><span></span></span>
+            Difficile
+          </label>
+
+        </div>
+      </fieldset>
+
+      <fieldset class="option-field">
+        <legend>Nombre de questions</legend>
+        <div class="option-group">
+
+          <input type="radio" name="number" id="number-5" value="5" class="chip-input">
+          <label class="chip" for="number-5">5</label>
+
+          <input type="radio" name="number" id="number-10" value="10" class="chip-input" checked>
+          <label class="chip" for="number-10">10</label>
+
+          <input type="radio" name="number" id="number-15" value="15" class="chip-input">
+          <label class="chip" for="number-15">15</label>
+
+          <input type="radio" name="number" id="number-20" value="20" class="chip-input">
+          <label class="chip" for="number-20">20</label>
+
+          <input type="radio" name="number" id="number-30" value="30" class="chip-input">
+          <label class="chip" for="number-30">30</label>
+
+        </div>
+      </fieldset>
 
       <button type="button" id="start-game" class="btn btn-primary btn-block">
         Lancer la partie
