@@ -1,204 +1,87 @@
 <!DOCTYPE html>
 <html lang="fr">
-
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-    <title>Paroles Mystères - Configuration</title>
-
-    <link rel="stylesheet" href="css/style.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Configuration · Paroles Mystères</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
 </head>
-
 <body>
 
-    <main class="config-container">
+<div class="page">
 
-        <div class="logo">
-            🎵
-        </div>
+  <a href="index.html" class="mark">Paroles Mystères</a>
 
-        <h1>Paroles Mystères</h1>
+  <main class="config">
 
-        <p class="subtitle">
-            Configure ta partie
-        </p>
+    <h1 class="config-title">Configure ta partie</h1>
 
+    <section class="config-sheet">
 
-        <section class="config-card">
+      <div class="field">
+        <label for="genre">Style musical</label>
+        <select id="genre">
+          <option value="all">Tous les styles</option>
+          <option value="variete-francaise">Variété française</option>
+          <option value="pop-rock-francais">Pop / rock français</option>
+          <option value="rap-francais">Rap français</option>
+          <option value="pop-actuelle">Pop actuelle</option>
+        </select>
+      </div>
 
-            <h2>🎮 Paramètres de la partie</h2>
+      <div class="field">
+        <label for="era">Époque</label>
+        <select id="era">
+          <option value="all">Toutes les époques</option>
+          <option value="1960-1979">1960 – 1979</option>
+          <option value="1980-1989">1980 – 1989</option>
+          <option value="1990-1999">1990 – 1999</option>
+          <option value="2000-2009">2000 – 2009</option>
+          <option value="2010-2019">2010 – 2019</option>
+          <option value="2020-2026">2020 – 2026</option>
+        </select>
+      </div>
 
+      <div class="field">
+        <label for="difficulty">Difficulté</label>
+        <select id="difficulty">
+          <option value="all">Toutes les difficultés</option>
+          <option value="easy">Facile</option>
+          <option value="medium">Moyenne</option>
+          <option value="hard">Difficile</option>
+        </select>
+      </div>
 
-            <!-- STYLE MUSICAL -->
-            <div class="form-group">
+      <div class="field">
+        <label for="number">Nombre de questions</label>
+        <select id="number">
+          <option value="5">5 questions</option>
+          <option value="10" selected>10 questions</option>
+          <option value="15">15 questions</option>
+          <option value="20">20 questions</option>
+          <option value="30">30 questions</option>
+        </select>
+      </div>
 
-                <label for="genre">
-                    🎵 Style musical
-                </label>
+      <button type="button" id="start-game" class="btn btn-primary btn-block">
+        Lancer la partie
+      </button>
 
-                <select id="genre">
+    </section>
 
-                    <option value="all">
-                        Tous les styles
-                    </option>
+    <a href="index.html" class="back-link">Retour à l'accueil</a>
 
-                    <option value="variete-francaise">
-                        🎤 Variété française
-                    </option>
+  </main>
 
-                    <option value="pop-rock-francais">
-                        🎸 Pop / Rock français
-                    </option>
+  <footer class="page-footer">
+    Paroles Mystères — blind test musical francophone
+  </footer>
 
-                    <option value="rap-francais">
-                        🎤 Rap français
-                    </option>
+</div>
 
-                    <option value="pop-actuelle">
-                        🎧 Pop actuelle
-                    </option>
-
-                </select>
-
-            </div>
-
-
-            <!-- ÉPOQUE -->
-            <div class="form-group">
-
-                <label for="era">
-                    📅 Époque
-                </label>
-
-                <select id="era">
-
-                    <option value="all">
-                        Toutes les époques
-                    </option>
-
-                    <option value="1960-1979">
-                        1960 – 1979
-                    </option>
-
-                    <option value="1980-1989">
-                        1980 – 1989
-                    </option>
-
-                    <option value="1990-1999">
-                        1990 – 1999
-                    </option>
-
-                    <option value="2000-2009">
-                        2000 – 2009
-                    </option>
-
-                    <option value="2010-2019">
-                        2010 – 2019
-                    </option>
-
-                    <option value="2020-2026">
-                        2020 – 2026
-                    </option>
-
-                </select>
-
-            </div>
-
-
-            <!-- DIFFICULTÉ -->
-            <div class="form-group">
-
-                <label for="difficulty">
-                    🎯 Difficulté
-                </label>
-
-                <select id="difficulty">
-
-                    <option value="all">
-                        Toutes les difficultés
-                    </option>
-
-                    <option value="easy">
-                        🟢 Facile
-                    </option>
-
-                    <option value="medium">
-                        🟠 Moyenne
-                    </option>
-
-                    <option value="hard">
-                        🔴 Difficile
-                    </option>
-
-                </select>
-
-            </div>
-
-
-            <!-- NOMBRE DE QUESTIONS -->
-            <div class="form-group">
-
-                <label for="number">
-                    ❓ Nombre de questions
-                </label>
-
-                <select id="number">
-
-                    <option value="5">
-                        5 questions
-                    </option>
-
-                    <option value="10" selected>
-                        10 questions
-                    </option>
-
-                    <option value="15">
-                        15 questions
-                    </option>
-
-                    <option value="20">
-                        20 questions
-                    </option>
-
-                    <option value="30">
-                        30 questions
-                    </option>
-
-                </select>
-
-            </div>
-
-
-            <!-- BOUTON -->
-            <button
-                type="button"
-                class="game-start-button"
-                id="start-game"
-            >
-                🚀 Lancer la partie
-            </button>
-
-        </section>
-
-
-        <a
-            href="index.html"
-            class="back-link"
-        >
-            ← Retour à l'accueil
-        </a>
-
-    </main>
-
-
-    <footer>
-        Paroles Mystères · Le blind test musical francophone
-    </footer>
-
-
-    <script src="js/jeu.js"></script>
-
+<script src="js/jeu.js"></script>
 </body>
-
 </html>
