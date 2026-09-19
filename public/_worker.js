@@ -13,6 +13,9 @@ export default {
 
     const LASTFM_API_KEY = env.LASTFM_API_KEY || "";
 
+    const SESSION_DURATION_SECONDS =
+      60 * 60 * 24 * 30;
+
     /*
      * ============================================================
      * CATALOGUES
@@ -205,13 +208,474 @@ export default {
 
     /*
      * ============================================================
-     * JETON DE REPONSE (anti-triche)
+     * OUTILS GENERAUX
+     * ============================================================
+     */
+
+    function json(data, status = 200, extraHeaders = {}) {
+      return new Response(
+        JSON.stringify(data),
+        {
+          status,
+          headers: {
+            "Content-Type":
+              "application/json; charset=utf-8",
+            "Cache-Control": "no-store",
+            ...extraHeaders
+          }
+        }
+      );
+    }
+
+    async function readJson(request) {
+      try {
+        return await request.json();
+      } catch {
+        return null;
+      }
+    }
+
+    function bytesToBase64Url(bytes) {
+      let binary = "";
+
+      for (const byte of bytes) {
+        binary += String.fromCharCode(byte);
+      }
+
+      return btoa(binary)
+        .replace(/\+/g, "-")
+        .replace(/\//g, "_")
+        .replace(/=+$/, "");
+    }
+
+    function base64UrlToBytes(value) {
+      const base64 =
+        value
+          .replace(/-/g, "+")
+          .replace(/_/g, "/");
+
+      const binary = atob(base64);
+
+      const bytes =
+        new Uint8Array(binary.length);
+
+      for (
+        let i = 0;
+        i < binary.length;
+        i++
+      ) {
+        bytes[i] =
+          binary.charCodeAt(i);
+      }
+
+      return bytes;
+    }
+
+    /*
+     * ============================================================
+     * AUTHENTIFICATION
      * ============================================================
      *
-     * La bonne réponse ne doit jamais transiter en clair vers
-     * le navigateur. On la chiffre dans un jeton opaque que le
-     * client renvoie tel quel lors de la validation ; seul le
-     * Worker, avec sa clé secrète, peut le déchiffrer.
+     * Les mots de passe sont hachés avec PBKDF2 + SHA-256.
+     *
+     * Format enregistré :
+     *
+     * pbkdf2$iterations$salt$hash
+     *
+     * Le mot de passe original n'est jamais enregistré.
+     */
+
+    const PASSWORD_ITERATIONS = 120000;
+
+    async function hashPassword(password) {
+      const salt =
+        crypto.getRandomValues(
+          new Uint8Array(16)
+        );
+
+      const passwordBytes =
+        new TextEncoder().encode(
+          password
+        );
+
+      const key =
+        await crypto.subtle.importKey(
+          "raw",
+          passwordBytes,
+          {
+            name: "PBKDF2"
+          },
+          false,
+          ["deriveBits"]
+        );
+
+      const derivedBits =
+        await crypto.subtle.deriveBits(
+          {
+            name: "PBKDF2",
+            salt,
+            iterations:
+              PASSWORD_ITERATIONS,
+            hash: "SHA-256"
+          },
+          key,
+          256
+        );
+
+      const hash =
+        new Uint8Array(
+          derivedBits
+        );
+
+      return (
+        "pbkdf2$" +
+        PASSWORD_ITERATIONS +
+        "$" +
+        bytesToBase64Url(salt) +
+        "$" +
+        bytesToBase64Url(hash)
+      );
+    }
+
+    function constantTimeEqual(
+      a,
+      b
+    ) {
+      if (a.length !== b.length) {
+        return false;
+      }
+
+      let result = 0;
+
+      for (
+        let i = 0;
+        i < a.length;
+        i++
+      ) {
+        result |=
+          a[i] ^ b[i];
+      }
+
+      return result === 0;
+    }
+
+    async function verifyPassword(
+      password,
+      storedHash
+    ) {
+      try {
+        const parts =
+          storedHash.split("$");
+
+        if (
+          parts.length !== 4 ||
+          parts[0] !== "pbkdf2"
+        ) {
+          return false;
+        }
+
+        const iterations =
+          Number(parts[1]);
+
+        const salt =
+          base64UrlToBytes(parts[2]);
+
+        const expected =
+          base64UrlToBytes(parts[3]);
+
+        if (
+          !Number.isFinite(iterations) ||
+          iterations < 10000 ||
+          iterations > 1000000
+        ) {
+          return false;
+        }
+
+        const passwordBytes =
+          new TextEncoder().encode(
+            password
+          );
+
+        const key =
+          await crypto.subtle.importKey(
+            "raw",
+            passwordBytes,
+            {
+              name: "PBKDF2"
+            },
+            false,
+            ["deriveBits"]
+          );
+
+        const derivedBits =
+          await crypto.subtle.deriveBits(
+            {
+              name: "PBKDF2",
+              salt,
+              iterations,
+              hash: "SHA-256"
+            },
+            key,
+            256
+          );
+
+        const actual =
+          new Uint8Array(
+            derivedBits
+          );
+
+        return constantTimeEqual(
+          actual,
+          expected
+        );
+      } catch {
+        return false;
+      }
+    }
+
+    function normalizeEmail(email) {
+      return String(email || "")
+        .trim()
+        .toLowerCase();
+    }
+
+    function validateEmail(email) {
+      if (
+        typeof email !== "string" ||
+        email.length < 5 ||
+        email.length > 254
+      ) {
+        return false;
+      }
+
+      return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
+        email
+      );
+    }
+
+    function validateUsername(username) {
+      if (
+        typeof username !== "string"
+      ) {
+        return false;
+      }
+
+      const value =
+        username.trim();
+
+      if (
+        value.length < 3 ||
+        value.length > 20
+      ) {
+        return false;
+      }
+
+      /*
+       * Lettres, chiffres, espaces,
+       * tiret et underscore.
+       */
+
+      return /^[A-Za-zÀ-ÖØ-öø-ÿ0-9 _-]+$/.test(
+        value
+      );
+    }
+
+    function normalizeUsername(username) {
+      return String(username || "")
+        .trim()
+        .replace(/\s+/g, " ");
+    }
+
+    function getSessionId(request) {
+      const cookie =
+        request.headers.get(
+          "Cookie"
+        );
+
+      if (!cookie) {
+        return null;
+      }
+
+      const cookies =
+        cookie.split(";");
+
+      for (const item of cookies) {
+        const separator =
+          item.indexOf("=");
+
+        if (separator === -1) {
+          continue;
+        }
+
+        const name =
+          item
+            .slice(0, separator)
+            .trim();
+
+        const value =
+          item
+            .slice(separator + 1)
+            .trim();
+
+        if (
+          name ===
+          "__Host-paroles-session"
+        ) {
+          return decodeURIComponent(
+            value
+          );
+        }
+      }
+
+      return null;
+    }
+
+    async function createSession(
+      userId
+    ) {
+      const sessionId =
+        crypto.randomUUID();
+
+      const now =
+        Math.floor(
+          Date.now() / 1000
+        );
+
+      const expiresAt =
+        now +
+        SESSION_DURATION_SECONDS;
+
+      await env.DB.prepare(
+        `
+        INSERT INTO sessions
+        (id, user_id, expires_at, created_at)
+        VALUES (?, ?, ?, ?)
+        `
+      )
+        .bind(
+          sessionId,
+          userId,
+          expiresAt,
+          now
+        )
+        .run();
+
+      return {
+        sessionId,
+        expiresAt
+      };
+    }
+
+    function sessionCookie(
+      sessionId
+    ) {
+      return (
+        "__Host-paroles-session=" +
+        encodeURIComponent(
+          sessionId
+        ) +
+        "; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=" +
+        SESSION_DURATION_SECONDS
+      );
+    }
+
+    function clearSessionCookie() {
+      return (
+        "__Host-paroles-session=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0"
+      );
+    }
+
+    async function getCurrentUser(
+      request
+    ) {
+      if (!env.DB) {
+        throw new Error(
+          "Base D1 non disponible."
+        );
+      }
+
+      const sessionId =
+        getSessionId(request);
+
+      if (!sessionId) {
+        return null;
+      }
+
+      const now =
+        Math.floor(
+          Date.now() / 1000
+        );
+
+      const result =
+        await env.DB.prepare(
+          `
+          SELECT
+            sessions.id AS session_id,
+            sessions.expires_at,
+            users.id,
+            users.username,
+            users.email,
+            users.created_at
+          FROM sessions
+          INNER JOIN users
+            ON users.id = sessions.user_id
+          WHERE sessions.id = ?
+            AND sessions.expires_at > ?
+          LIMIT 1
+          `
+        )
+          .bind(
+            sessionId,
+            now
+          )
+          .first();
+
+      if (!result) {
+        return null;
+      }
+
+      return {
+        id: result.id,
+        username:
+          result.username,
+        email:
+          result.email,
+        created_at:
+          result.created_at
+      };
+    }
+
+    /*
+     * Nettoyage léger des sessions expirées.
+     *
+     * On ne fait pas cette opération avant chaque requête
+     * pour éviter de ralentir inutilement le site.
+     */
+
+    async function cleanupExpiredSessions() {
+      if (!env.DB) {
+        return;
+      }
+
+      const now =
+        Math.floor(
+          Date.now() / 1000
+        );
+
+      await env.DB.prepare(
+        `
+        DELETE FROM sessions
+        WHERE expires_at <= ?
+        `
+      )
+        .bind(now)
+        .run();
+    }
+
+    /*
+     * ============================================================
+     * JETON DE REPONSE (ANTI-TRICHE)
+     * ============================================================
      */
 
     async function getAnswerKey() {
@@ -236,44 +700,6 @@ export default {
       );
     }
 
-    function bytesToBase64Url(bytes) {
-      let binary = "";
-
-      for (const byte of bytes) {
-        binary +=
-          String.fromCharCode(byte);
-      }
-
-      return btoa(binary)
-        .replace(/\+/g, "-")
-        .replace(/\//g, "_")
-        .replace(/=+$/, "");
-    }
-
-    function base64UrlToBytes(value) {
-      const base64 =
-        value
-          .replace(/-/g, "+")
-          .replace(/_/g, "/");
-
-      const binary = atob(base64);
-
-      const bytes = new Uint8Array(
-        binary.length
-      );
-
-      for (
-        let i = 0;
-        i < binary.length;
-        i++
-      ) {
-        bytes[i] =
-          binary.charCodeAt(i);
-      }
-
-      return bytes;
-    }
-
     async function encryptAnswer(
       payload,
       key
@@ -290,7 +716,10 @@ export default {
 
       const ciphertext =
         await crypto.subtle.encrypt(
-          { name: "AES-GCM", iv },
+          {
+            name: "AES-GCM",
+            iv
+          },
           key,
           data
         );
@@ -298,13 +727,15 @@ export default {
       const combined =
         new Uint8Array(
           iv.length +
-            ciphertext.byteLength
+          ciphertext.byteLength
         );
 
       combined.set(iv, 0);
 
       combined.set(
-        new Uint8Array(ciphertext),
+        new Uint8Array(
+          ciphertext
+        ),
         iv.length
       );
 
@@ -320,14 +751,18 @@ export default {
       const bytes =
         base64UrlToBytes(token);
 
-      const iv = bytes.slice(0, 12);
+      const iv =
+        bytes.slice(0, 12);
 
       const ciphertext =
         bytes.slice(12);
 
       const decrypted =
         await crypto.subtle.decrypt(
-          { name: "AES-GCM", iv },
+          {
+            name: "AES-GCM",
+            iv
+          },
           key,
           ciphertext
         );
@@ -345,51 +780,57 @@ export default {
      * ============================================================
      */
 
-    function json(data, status = 200) {
-      return new Response(JSON.stringify(data), {
-        status,
-        headers: {
-          "Content-Type": "application/json; charset=utf-8",
-          "Cache-Control": "no-store",
-          "Access-Control-Allow-Origin": "*"
-        }
-      });
-    }
-
     async function fetchTimeout(
       resource,
       options = {},
       timeout = 10000
     ) {
-      const controller = new AbortController();
+      const controller =
+        new AbortController();
 
-      const timer = setTimeout(
-        () => controller.abort(),
-        timeout
-      );
+      const timer =
+        setTimeout(
+          () => controller.abort(),
+          timeout
+        );
 
       try {
-        return await fetch(resource, {
-          ...options,
-          signal: controller.signal
-        });
+        return await fetch(
+          resource,
+          {
+            ...options,
+            signal:
+              controller.signal
+          }
+        );
       } finally {
         clearTimeout(timer);
       }
     }
 
     function sleep(ms) {
-      return new Promise(resolve =>
-        setTimeout(resolve, ms)
+      return new Promise(
+        resolve =>
+          setTimeout(
+            resolve,
+            ms
+          )
       );
     }
 
     function shuffle(array) {
       const copy = [...array];
 
-      for (let i = copy.length - 1; i > 0; i--) {
+      for (
+        let i = copy.length - 1;
+        i > 0;
+        i--
+      ) {
         const j =
-          Math.floor(Math.random() * (i + 1));
+          Math.floor(
+            Math.random() *
+              (i + 1)
+          );
 
         [copy[i], copy[j]] =
           [copy[j], copy[i]];
@@ -402,9 +843,18 @@ export default {
       return String(value || "")
         .toLowerCase()
         .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "")
-        .replace(/[’']/g, "'")
-        .replace(/[^a-z0-9]+/g, " ")
+        .replace(
+          /[\u0300-\u036f]/g,
+          ""
+        )
+        .replace(
+          /[’']/g,
+          "'"
+        )
+        .replace(
+          /[^a-z0-9]+/g,
+          " "
+        )
         .trim();
     }
 
@@ -412,35 +862,46 @@ export default {
       if (!value) return null;
 
       const match =
-        String(value).match(/\b(19|20)\d{2}\b/);
+        String(value).match(
+          /\b(19|20)\d{2}\b/
+        );
 
-      return match ? Number(match[0]) : null;
+      return match
+        ? Number(match[0])
+        : null;
     }
 
-    function isInEra(year, era) {
-      if (era === "all") {
+    function isInEra(
+      year,
+      era
+    ) {
+      if (
+        era === "all"
+      ) {
         return true;
       }
-
-      /*
-       * Lorsqu'une date est absente, on conserve le morceau.
-       * Cela évite de supprimer inutilement des titres.
-       */
 
       if (!year) {
         return true;
       }
 
       const ranges = {
-        "1960-1979": [1960, 1979],
-        "1980-1989": [1980, 1989],
-        "1990-1999": [1990, 1999],
-        "2000-2009": [2000, 2009],
-        "2010-2019": [2010, 2019],
-        "2020-2026": [2020, 2026]
+        "1960-1979":
+          [1960, 1979],
+        "1980-1989":
+          [1980, 1989],
+        "1990-1999":
+          [1990, 1999],
+        "2000-2009":
+          [2000, 2009],
+        "2010-2019":
+          [2010, 2019],
+        "2020-2026":
+          [2020, 2026]
       };
 
-      const range = ranges[era];
+      const range =
+        ranges[era];
 
       if (!range) {
         return true;
@@ -453,7 +914,10 @@ export default {
     }
 
     function looksFrench(text) {
-      if (!text || text.length < 80) {
+      if (
+        !text ||
+        text.length < 80
+      ) {
         return false;
       }
 
@@ -512,8 +976,13 @@ export default {
 
       let score = 0;
 
-      for (const word of frenchWords) {
-        if (lower.includes(word)) {
+      for (
+        const word
+        of frenchWords
+      ) {
+        if (
+          lower.includes(word)
+        ) {
           score++;
         }
       }
@@ -526,25 +995,36 @@ export default {
         return "";
       }
 
-      let result = String(text);
+      let result =
+        String(text);
 
-      result = result.replace(/\r/g, "");
+      result =
+        result.replace(
+          /\r/g,
+          ""
+        );
 
-      result = result.replace(
-        /\[[^\]]*\]/g,
-        ""
-      );
+      result =
+        result.replace(
+          /\[[^\]]*\]/g,
+          ""
+        );
 
-      result = result.replace(
-        /^(paroles|lyrics|verse|chorus|refrain|couplet)[^\n]*$/gim,
-        ""
-      );
+      result =
+        result.replace(
+          /^(paroles|lyrics|verse|chorus|refrain|couplet)[^\n]*$/gim,
+          ""
+        );
 
-      result = result
-        .split("\n")
-        .map(line => line.trim())
-        .filter(Boolean)
-        .join("\n");
+      result =
+        result
+          .split("\n")
+          .map(
+            line =>
+              line.trim()
+          )
+          .filter(Boolean)
+          .join("\n");
 
       return result.trim();
     }
@@ -557,37 +1037,58 @@ export default {
         return null;
       }
 
-      const lines = cleaned
-        .split("\n")
-        .map(line => line.trim())
-        .filter(line => line.length >= 8)
-        .filter(
-          line =>
-            !/^https?:\/\//i.test(line)
-        );
+      const lines =
+        cleaned
+          .split("\n")
+          .map(
+            line =>
+              line.trim()
+          )
+          .filter(
+            line =>
+              line.length >= 8
+          )
+          .filter(
+            line =>
+              !/^https?:\/\//i.test(
+                line
+              )
+          );
 
-      if (lines.length < 2) {
+      if (
+        lines.length < 2
+      ) {
         return null;
       }
 
-      const possibleStarts = [];
+      const possibleStarts =
+        [];
 
       for (
         let i = 0;
-        i < lines.length - 1;
+        i <
+          lines.length - 1;
         i++
       ) {
         if (
-          lines[i].length >= 12 &&
-          lines[i + 1].length >= 12 &&
-          lines[i].length <= 180 &&
-          lines[i + 1].length <= 180
+          lines[i].length >=
+            12 &&
+          lines[i + 1].length >=
+            12 &&
+          lines[i].length <=
+            180 &&
+          lines[i + 1].length <=
+            180
         ) {
-          possibleStarts.push(i);
+          possibleStarts.push(
+            i
+          );
         }
       }
 
-      if (!possibleStarts.length) {
+      if (
+        !possibleStarts.length
+      ) {
         return null;
       }
 
@@ -600,53 +1101,46 @@ export default {
         ];
 
       const selected =
-        lines.slice(start, start + 4);
+        lines.slice(
+          start,
+          start + 4
+        );
 
-      if (selected.length < 2) {
+      if (
+        selected.length < 2
+      ) {
         return null;
       }
 
-      return selected.join("\n");
+      return selected.join(
+        "\n"
+      );
     }
 
     /*
      * ============================================================
      * MUSICBRAINZ
      * ============================================================
-     *
-     * IMPORTANT :
-     * On ne recherche PLUS l'ID MusicBrainz de l'artiste.
-     *
-     * On demande directement les recordings correspondant
-     * au nom de l'artiste.
-     *
-     * Cela supprime une série entière de requêtes et évite
-     * les 503 rencontrés précédemment.
      */
 
     async function searchArtistRecordings(
       artistName
     ) {
-      /*
-       * ----------------------------------------------------------
-       * CACHE
-       * ----------------------------------------------------------
-       *
-       * On met en cache les recordings par artiste pendant 6h.
-       * Cela évite de re-questionner MusicBrainz (et d'attendre
-       * la pause de rate-limit) pour un artiste déjà interrogé
-       * récemment par n'importe quel joueur.
-       */
+      const cache =
+        caches.default;
 
-      const cache = caches.default;
-
-      const cacheKey = new Request(
-        "https://cache.parolesmysteres.internal/mb/" +
-          encodeURIComponent(artistName)
-      );
+      const cacheKey =
+        new Request(
+          "https://cache.parolesmysteres.internal/mb/" +
+          encodeURIComponent(
+            artistName
+          )
+        );
 
       const cachedResponse =
-        await cache.match(cacheKey);
+        await cache.match(
+          cacheKey
+        );
 
       if (cachedResponse) {
         return {
@@ -657,7 +1151,10 @@ export default {
       }
 
       const cleanArtist =
-        artistName.replace(/"/g, "");
+        artistName.replace(
+          /"/g,
+          ""
+        );
 
       const query =
         'artist:"' +
@@ -667,7 +1164,9 @@ export default {
       const endpoint =
         "https://musicbrainz.org/ws/2/recording" +
         "?query=" +
-        encodeURIComponent(query) +
+        encodeURIComponent(
+          query
+        ) +
         "&fmt=json&limit=50";
 
       const response =
@@ -687,7 +1186,7 @@ export default {
       if (!response.ok) {
         throw new Error(
           "MusicBrainz recording HTTP " +
-            response.status
+          response.status
         );
       }
 
@@ -701,11 +1200,6 @@ export default {
         )
           ? data.recordings
           : [];
-
-      /*
-       * On écrit dans le cache en arrière-plan
-       * (n'attend pas, ne ralentit pas la réponse).
-       */
 
       ctx.waitUntil(
         cache.put(
@@ -743,11 +1237,6 @@ export default {
 
       let year = null;
 
-      /*
-       * MusicBrainz peut fournir la date via
-       * les releases associées au recording.
-       */
-
       if (
         Array.isArray(
           recording.releases
@@ -758,14 +1247,17 @@ export default {
           of recording.releases
         ) {
           const releaseYear =
-            yearOf(release.date);
+            yearOf(
+              release.date
+            );
 
           if (
             releaseYear &&
             (!year ||
               releaseYear < year)
           ) {
-            year = releaseYear;
+            year =
+              releaseYear;
           }
 
           if (
@@ -786,16 +1278,12 @@ export default {
               (!year ||
                 rgYear < year)
             ) {
-              year = rgYear;
+              year =
+                rgYear;
             }
           }
         }
       }
-
-      /*
-       * Certaines réponses MusicBrainz peuvent
-       * contenir directement first-release-date.
-       */
 
       if (
         !year &&
@@ -803,18 +1291,23 @@ export default {
           "first-release-date"
         ]
       ) {
-        year = yearOf(
-          recording[
-            "first-release-date"
-          ]
-        );
+        year =
+          yearOf(
+            recording[
+              "first-release-date"
+            ]
+          );
       }
 
       return {
-        artist: artistName,
-        title: recording.title,
-        year: year,
-        mbid: recording.id || null
+        artist:
+          artistName,
+        title:
+          recording.title,
+        year,
+        mbid:
+          recording.id ||
+          null
       };
     }
 
@@ -831,9 +1324,13 @@ export default {
       const endpoint =
         "https://lrclib.net/api/get" +
         "?artist_name=" +
-        encodeURIComponent(artist) +
+        encodeURIComponent(
+          artist
+        ) +
         "&track_name=" +
-        encodeURIComponent(title);
+        encodeURIComponent(
+          title
+        );
 
       const response =
         await fetchTimeout(
@@ -847,7 +1344,9 @@ export default {
           8000
         );
 
-      if (!response.ok) {
+      if (
+        !response.ok
+      ) {
         return null;
       }
 
@@ -875,7 +1374,9 @@ export default {
       artist,
       title
     ) {
-      if (!LASTFM_API_KEY) {
+      if (
+        !LASTFM_API_KEY
+      ) {
         return null;
       }
 
@@ -887,9 +1388,13 @@ export default {
           LASTFM_API_KEY
         ) +
         "&artist=" +
-        encodeURIComponent(artist) +
+        encodeURIComponent(
+          artist
+        ) +
         "&track=" +
-        encodeURIComponent(title) +
+        encodeURIComponent(
+          title
+        ) +
         "&format=json";
 
       const response =
@@ -904,7 +1409,9 @@ export default {
           7000
         );
 
-      if (!response.ok) {
+      if (
+        !response.ok
+      ) {
         return null;
       }
 
@@ -923,7 +1430,9 @@ export default {
       const number =
         Number(listeners);
 
-      return Number.isFinite(number)
+      return Number.isFinite(
+        number
+      )
         ? number
         : null;
     }
@@ -938,11 +1447,6 @@ export default {
         return true;
       }
 
-      /*
-       * Si Last.fm ne répond pas,
-       * on conserve le morceau.
-       */
-
       if (
         listeners === null ||
         listeners === undefined
@@ -953,7 +1457,8 @@ export default {
       if (
         difficulty === "easy"
       ) {
-        return listeners >= 300000;
+        return listeners >=
+          300000;
       }
 
       if (
@@ -994,7 +1499,8 @@ export default {
           genre,
           era,
           difficulty,
-          requested: number
+          requested:
+            number
         },
 
         artistsCatalog: 0,
@@ -1022,56 +1528,51 @@ export default {
         errors: []
       };
 
-      /*
-       * ----------------------------------------------------------
-       * CHOIX DU CATALOGUE
-       * ----------------------------------------------------------
-       */
-
       let artists = [];
 
-      if (genre === "all") {
+      if (
+        genre === "all"
+      ) {
         for (
           const category
-          of Object.keys(ARTISTS)
+          of Object.keys(
+            ARTISTS
+          )
         ) {
           artists.push(
-            ...ARTISTS[category]
+            ...ARTISTS[
+              category
+            ]
           );
         }
       } else {
         artists =
-          ARTISTS[genre] || [];
+          ARTISTS[
+            genre
+          ] || [];
       }
 
       artists = [
-        ...new Set(artists)
+        ...new Set(
+          artists
+        )
       ];
 
       diagnostics.artistsCatalog =
         artists.length;
 
-      artists = shuffle(artists);
-
-      /*
-       * ----------------------------------------------------------
-       * MUSICBRAINZ
-       * ----------------------------------------------------------
-       *
-       * On interroge davantage d'artistes qu'avant, pour
-       * garantir assez de variété (surtout avec le catalogue
-       * élargi) et assez de morceaux candidats pour atteindre
-       * le nombre de questions demandé même après tous les
-       * filtres (paroles absentes, pas assez françaises, etc.).
-       *
-       * Grâce au cache, seuls les artistes non encore en cache
-       * coûtent réellement la pause de rate-limit.
-       */
+      artists =
+        shuffle(
+          artists
+        );
 
       const targetArtistCount =
         Math.min(
           artists.length,
-          Math.max(12, number * 2)
+          Math.max(
+            12,
+            number * 2
+          )
         );
 
       const selectedArtists =
@@ -1102,7 +1603,8 @@ export default {
             recordings.length;
 
           if (
-            recordings.length === 0
+            recordings.length ===
+            0
           ) {
             diagnostics.artistsWithoutRecordings++;
           } else {
@@ -1139,46 +1641,34 @@ export default {
             );
           }
 
-          /*
-           * MusicBrainz demande environ
-           * 1 requête/seconde -- mais seulement
-           * si on a réellement interrogé l'API
-           * (pas nécessaire pour un résultat en cache).
-           */
-
           if (!fromCache) {
-            await sleep(1200);
+            await sleep(
+              1200
+            );
           }
-        } catch (error) {
+        } catch (
+          error
+        ) {
           if (
-            diagnostics.errors.length <
-            10
+            diagnostics.errors
+              .length < 10
           ) {
             diagnostics.errors.push(
               "MusicBrainz " +
-                artistName +
-                ": " +
-                String(
-                  error.message ||
-                    error
-                )
+              artistName +
+              ": " +
+              String(
+                error.message ||
+                error
+              )
             );
           }
 
-          /*
-           * On continue avec l'artiste
-           * suivant même en cas de 503.
-           */
-
-          await sleep(1500);
+          await sleep(
+            1500
+          );
         }
       }
-
-      /*
-       * ----------------------------------------------------------
-       * DOUBLONS
-       * ----------------------------------------------------------
-       */
 
       const seen =
         new Set();
@@ -1211,39 +1701,29 @@ export default {
         candidates.length;
 
       candidates =
-        shuffle(candidates);
-
-      /*
-       * On limite le nombre de requêtes LRCLIB,
-       * mais on garde une marge confortable au-dessus
-       * du nombre de questions demandé, car beaucoup
-       * de candidats seront rejetés en cours de route
-       * (paroles absentes, pas assez françaises, etc.).
-       */
+        shuffle(
+          candidates
+        );
 
       candidates =
         candidates.slice(
           0,
           Math.min(
             candidates.length,
-            Math.max(40, number * 6)
+            Math.max(
+              40,
+              number * 6
+            )
           )
         );
 
-      /*
-       * ----------------------------------------------------------
-       * LRCLIB
-       * ----------------------------------------------------------
-       *
-       * On traite 6 morceaux en parallèle.
-       * Cela réduit fortement le temps d'attente.
-       */
-
-      const batchSize = 6;
+      const batchSize =
+        6;
 
       for (
         let i = 0;
-        i < candidates.length;
+        i <
+          candidates.length;
         i += batchSize
       ) {
         if (
@@ -1290,25 +1770,19 @@ export default {
                     return {
                       candidate,
                       cleaned,
-                      isFrench: false,
-                      listeners: null
+                      isFrench:
+                        false,
+                      listeners:
+                        null
                     };
                   }
 
-                  /*
-                   * ----------------------------------------------
-                   * LAST.FM
-                   * ----------------------------------------------
-                   *
-                   * Fait en parallèle avec les autres
-                   * candidats du batch, au lieu d'attendre
-                   * chaque appel un par un.
-                   */
-
-                  let listeners = null;
+                  let listeners =
+                    null;
 
                   if (
-                    difficulty !== "all" &&
+                    difficulty !==
+                      "all" &&
                     LASTFM_API_KEY
                   ) {
                     try {
@@ -1318,18 +1792,23 @@ export default {
                           candidate.title
                         );
                     } catch {
-                      listeners = null;
+                      listeners =
+                        null;
                     }
                   }
 
                   return {
                     candidate,
                     cleaned,
-                    isFrench: true,
+                    isFrench:
+                      true,
                     listeners,
                     lastFmQueried:
-                      difficulty !== "all" &&
-                      Boolean(LASTFM_API_KEY)
+                      difficulty !==
+                        "all" &&
+                      Boolean(
+                        LASTFM_API_KEY
+                      )
                   };
                 } catch {
                   return null;
@@ -1352,23 +1831,27 @@ export default {
 
           diagnostics.lyricsFound++;
 
-          if (!result.isFrench) {
+          if (
+            !result.isFrench
+          ) {
             diagnostics.lyricsNotFrench++;
             continue;
           }
 
           diagnostics.lyricsFrench++;
 
-          const cleaned =
-            result.cleaned;
-
           const listeners =
             result.listeners;
 
-          if (result.lastFmQueried) {
+          if (
+            result.lastFmQueried
+          ) {
             diagnostics.lastFmRequests++;
 
-            if (listeners !== null) {
+            if (
+              listeners !==
+              null
+            ) {
               diagnostics.lastFmFound++;
             }
           }
@@ -1386,7 +1869,7 @@ export default {
 
           const excerpt =
             createExcerpt(
-              cleaned
+              result.cleaned
             );
 
           if (!excerpt) {
@@ -1396,7 +1879,8 @@ export default {
           diagnostics.excerptsCreated++;
 
           const finalDifficulty =
-            difficulty === "all"
+            difficulty ===
+            "all"
               ? "medium"
               : difficulty;
 
@@ -1419,18 +1903,23 @@ export default {
               const token =
                 await encryptAnswer(
                   {
-                    artist: q.artist,
-                    title: q.title
+                    artist:
+                      q.artist,
+                    title:
+                      q.title
                   },
                   answerKey
                 );
 
               return {
-                lyrics: q.lyrics,
-                year: q.year,
+                lyrics:
+                  q.lyrics,
+                year:
+                  q.year,
                 difficulty:
                   q.difficulty,
-                points: q.points,
+                points:
+                  q.points,
                 token
               };
             }
@@ -1438,15 +1927,10 @@ export default {
         );
 
       return {
-        questions: publicQuestions,
+        questions:
+          publicQuestions,
         diagnostics
       };
-
-      /*
-       * ----------------------------------------------------------
-       * Fonction locale de création
-       * ----------------------------------------------------------
-       */
 
       function questionsPush(
         candidate,
@@ -1461,27 +1945,28 @@ export default {
           return;
         }
 
-        /*
-         * Limite de variété : 1 seule question par
-         * artiste pour une petite partie (5 questions
-         * ou moins), 2 maximum au-delà.
-         */
-
         const maxPerArtist =
-          number <= 5 ? 1 : 2;
+          number <= 5
+            ? 1
+            : 2;
 
         const artistKey =
-          normalize(candidate.artist);
+          normalize(
+            candidate.artist
+          );
 
         const alreadyUsed =
           questions.filter(
             q =>
-              normalize(q.artist) ===
+              normalize(
+                q.artist
+              ) ===
               artistKey
           ).length;
 
         if (
-          alreadyUsed >= maxPerArtist
+          alreadyUsed >=
+          maxPerArtist
         ) {
           return;
         }
@@ -1503,7 +1988,8 @@ export default {
             excerpt,
 
           points:
-            finalDifficulty === "hard"
+            finalDifficulty ===
+            "hard"
               ? 3
               : finalDifficulty ===
                 "medium"
@@ -1518,7 +2004,7 @@ export default {
 
     /*
      * ============================================================
-     * API TEST
+     * ROUTE : TEST
      * ============================================================
      */
 
@@ -1531,6 +2017,543 @@ export default {
         message:
           "Paroles Mystères API fonctionne !"
       });
+    }
+
+    /*
+     * ============================================================
+     * ROUTE : INSCRIPTION
+     * ============================================================
+     */
+
+    if (
+      url.pathname ===
+        "/api/register" &&
+      request.method ===
+        "POST"
+    ) {
+      if (!env.DB) {
+        return json(
+          {
+            success:
+              false,
+            error:
+              "La base de données n'est pas configurée."
+          },
+          500
+        );
+      }
+
+      const body =
+        await readJson(
+          request
+        );
+
+      if (!body) {
+        return json(
+          {
+            success:
+              false,
+            error:
+              "Données invalides."
+          },
+          400
+        );
+      }
+
+      const username =
+        normalizeUsername(
+          body.username
+        );
+
+      const email =
+        normalizeEmail(
+          body.email
+        );
+
+      const password =
+        typeof body.password ===
+        "string"
+          ? body.password
+          : "";
+
+      if (
+        !validateUsername(
+          username
+        )
+      ) {
+        return json(
+          {
+            success:
+              false,
+            error:
+              "Le pseudo doit contenir entre 3 et 20 caractères et uniquement des lettres, chiffres, espaces, tirets ou underscores."
+          },
+          400
+        );
+      }
+
+      if (
+        !validateEmail(
+          email
+        )
+      ) {
+        return json(
+          {
+            success:
+              false,
+            error:
+              "Adresse e-mail invalide."
+          },
+          400
+        );
+      }
+
+      if (
+        password.length <
+        8
+      ) {
+        return json(
+          {
+            success:
+              false,
+            error:
+              "Le mot de passe doit contenir au moins 8 caractères."
+          },
+          400
+        );
+      }
+
+      if (
+        password.length >
+        128
+      ) {
+        return json(
+          {
+            success:
+              false,
+            error:
+              "Le mot de passe est trop long."
+          },
+          400
+        );
+      }
+
+      try {
+        const existingEmail =
+          await env.DB.prepare(
+            `
+            SELECT id
+            FROM users
+            WHERE email = ?
+            LIMIT 1
+            `
+          )
+            .bind(email)
+            .first();
+
+        if (
+          existingEmail
+        ) {
+          return json(
+            {
+              success:
+                false,
+              error:
+                "Cette adresse e-mail est déjà utilisée."
+            },
+            409
+          );
+        }
+
+        const existingUsername =
+          await env.DB.prepare(
+            `
+            SELECT id
+            FROM users
+            WHERE lower(username) = lower(?)
+            LIMIT 1
+            `
+          )
+            .bind(username)
+            .first();
+
+        if (
+          existingUsername
+        ) {
+          return json(
+            {
+              success:
+                false,
+              error:
+                "Ce pseudo est déjà utilisé."
+            },
+            409
+          );
+        }
+
+        const passwordHash =
+          await hashPassword(
+            password
+          );
+
+        const userId =
+          crypto.randomUUID();
+
+        const now =
+          Math.floor(
+            Date.now() / 1000
+          );
+
+        await env.DB.prepare(
+          `
+          INSERT INTO users
+          (
+            id,
+            username,
+            email,
+            password_hash,
+            created_at,
+            updated_at
+          )
+          VALUES (?, ?, ?, ?, ?, ?)
+          `
+        )
+          .bind(
+            userId,
+            username,
+            email,
+            passwordHash,
+            now,
+            now
+          )
+          .run();
+
+        const {
+          sessionId
+        } =
+          await createSession(
+            userId
+          );
+
+        ctx.waitUntil(
+          cleanupExpiredSessions()
+        );
+
+        return json(
+          {
+            success:
+              true,
+            user: {
+              id:
+                userId,
+              username,
+              email
+            }
+          },
+          201,
+          {
+            "Set-Cookie":
+              sessionCookie(
+                sessionId
+              )
+          }
+        );
+      } catch (
+        error
+      ) {
+        return json(
+          {
+            success:
+              false,
+            error:
+              "Impossible de créer le compte."
+          },
+          500
+        );
+      }
+    }
+
+    /*
+     * ============================================================
+     * ROUTE : CONNEXION
+     * ============================================================
+     */
+
+    if (
+      url.pathname ===
+        "/api/login" &&
+      request.method ===
+        "POST"
+    ) {
+      if (!env.DB) {
+        return json(
+          {
+            success:
+              false,
+            error:
+              "La base de données n'est pas configurée."
+          },
+          500
+        );
+      }
+
+      const body =
+        await readJson(
+          request
+        );
+
+      if (!body) {
+        return json(
+          {
+            success:
+              false,
+            error:
+              "Données invalides."
+          },
+          400
+        );
+      }
+
+      const email =
+        normalizeEmail(
+          body.email
+        );
+
+      const password =
+        typeof body.password ===
+        "string"
+          ? body.password
+          : "";
+
+      if (
+        !validateEmail(
+          email
+        ) ||
+        !password
+      ) {
+        return json(
+          {
+            success:
+              false,
+            error:
+              "Adresse e-mail ou mot de passe incorrect."
+          },
+          401
+        );
+      }
+
+      try {
+        const user =
+          await env.DB.prepare(
+            `
+            SELECT
+              id,
+              username,
+              email,
+              password_hash,
+              created_at
+            FROM users
+            WHERE email = ?
+            LIMIT 1
+            `
+          )
+            .bind(email)
+            .first();
+
+        /*
+         * Message volontairement générique :
+         * on ne révèle pas si l'adresse existe.
+         */
+
+        if (
+          !user
+        ) {
+          return json(
+            {
+              success:
+                false,
+              error:
+                "Adresse e-mail ou mot de passe incorrect."
+            },
+            401
+          );
+        }
+
+        const valid =
+          await verifyPassword(
+            password,
+            user.password_hash
+          );
+
+        if (!valid) {
+          return json(
+            {
+              success:
+                false,
+              error:
+                "Adresse e-mail ou mot de passe incorrect."
+            },
+            401
+          );
+        }
+
+        /*
+         * Une nouvelle connexion crée une nouvelle session.
+         * Les anciennes sessions restent valides jusqu'à
+         * expiration ou déconnexion.
+         */
+
+        const {
+          sessionId
+        } =
+          await createSession(
+            user.id
+          );
+
+        ctx.waitUntil(
+          cleanupExpiredSessions()
+        );
+
+        return json(
+          {
+            success:
+              true,
+            user: {
+              id:
+                user.id,
+              username:
+                user.username,
+              email:
+                user.email,
+              created_at:
+                user.created_at
+            }
+          },
+          200,
+          {
+            "Set-Cookie":
+              sessionCookie(
+                sessionId
+              )
+          }
+        );
+      } catch (
+        error
+      ) {
+        return json(
+          {
+            success:
+              false,
+            error:
+              "Erreur lors de la connexion."
+          },
+          500
+        );
+      }
+    }
+
+    /*
+     * ============================================================
+     * ROUTE : DECONNEXION
+     * ============================================================
+     */
+
+    if (
+      url.pathname ===
+        "/api/logout" &&
+      request.method ===
+        "POST"
+    ) {
+      const sessionId =
+        getSessionId(
+          request
+        );
+
+      if (
+        sessionId &&
+        env.DB
+      ) {
+        try {
+          await env.DB.prepare(
+            `
+            DELETE FROM sessions
+            WHERE id = ?
+            `
+          )
+            .bind(
+              sessionId
+            )
+            .run();
+        } catch {
+          /*
+           * Même si la suppression D1 échoue,
+           * le cookie sera supprimé côté navigateur.
+           */
+        }
+      }
+
+      return json(
+        {
+          success:
+            true
+        },
+        200,
+        {
+          "Set-Cookie":
+            clearSessionCookie()
+        }
+      );
+    }
+
+    /*
+     * ============================================================
+     * ROUTE : UTILISATEUR CONNECTE
+     * ============================================================
+     */
+
+    if (
+      url.pathname ===
+        "/api/me" &&
+      request.method ===
+        "GET"
+    ) {
+      try {
+        const user =
+          await getCurrentUser(
+            request
+          );
+
+        if (!user) {
+          return json({
+            success:
+              true,
+            authenticated:
+              false,
+            user:
+              null
+          });
+        }
+
+        return json({
+          success:
+            true,
+          authenticated:
+            true,
+          user
+        });
+      } catch (
+        error
+      ) {
+        return json(
+          {
+            success:
+              false,
+            error:
+              "Impossible de vérifier la session."
+          },
+          500
+        );
+      }
     }
 
     /*
@@ -1553,10 +2576,14 @@ export default {
           "title"
         );
 
-      if (!artist || !title) {
+      if (
+        !artist ||
+        !title
+      ) {
         return json(
           {
-            success: false,
+            success:
+              false,
             error:
               "Artiste et titre requis."
           },
@@ -1600,10 +2627,13 @@ export default {
             10000
           );
 
-        if (!response.ok) {
+        if (
+          !response.ok
+        ) {
           return json(
             {
-              success: false,
+              success:
+                false,
               error:
                 "MusicBrainz HTTP " +
                 response.status
@@ -1616,21 +2646,26 @@ export default {
           await response.json();
 
         return json({
-          success: true,
+          success:
+            true,
           artist,
           title,
           recordings:
             data.recordings ||
             []
         });
-      } catch (error) {
+      } catch (
+        error
+      ) {
         return json(
           {
-            success: false,
-            error: String(
-              error.message ||
+            success:
+              false,
+            error:
+              String(
+                error.message ||
                 error
-            )
+              )
           },
           500
         );
@@ -1657,10 +2692,14 @@ export default {
           "title"
         );
 
-      if (!artist || !title) {
+      if (
+        !artist ||
+        !title
+      ) {
         return json(
           {
-            success: false,
+            success:
+              false,
             error:
               "Artiste et titre requis."
           },
@@ -1676,22 +2715,30 @@ export default {
           );
 
         return json({
-          success: true,
+          success:
+            true,
           artist,
           title,
           found:
-            Boolean(lyrics),
+            Boolean(
+              lyrics
+            ),
           lyrics:
-            lyrics || null
+            lyrics ||
+            null
         });
-      } catch (error) {
+      } catch (
+        error
+      ) {
         return json(
           {
-            success: false,
-            error: String(
-              error.message ||
+            success:
+              false,
+            error:
+              String(
+                error.message ||
                 error
-            )
+              )
           },
           500
         );
@@ -1757,7 +2804,8 @@ export default {
           });
 
         return json({
-          success: true,
+          success:
+            true,
 
           questions:
             result.questions,
@@ -1766,19 +2814,24 @@ export default {
             number,
 
           count:
-            result.questions.length,
+            result.questions
+              .length,
 
           diagnostics:
             result.diagnostics
         });
-      } catch (error) {
+      } catch (
+        error
+      ) {
         return json(
           {
-            success: false,
-            error: String(
-              error.message ||
+            success:
+              false,
+            error:
+              String(
+                error.message ||
                 error
-            )
+              )
           },
           500
         );
@@ -1789,24 +2842,24 @@ export default {
      * ============================================================
      * API VALIDATE
      * ============================================================
-     *
-     * Vérifie la réponse du joueur côté serveur, à partir du
-     * jeton chiffré reçu avec la question. La bonne réponse
-     * n'est jamais renvoyée avant cet appel.
      */
 
     if (
-      url.pathname === "/api/validate" &&
-      request.method === "POST"
+      url.pathname ===
+        "/api/validate" &&
+      request.method ===
+        "POST"
     ) {
       let body;
 
       try {
-        body = await request.json();
+        body =
+          await request.json();
       } catch {
         return json(
           {
-            success: false,
+            success:
+              false,
             error:
               "Corps de requête JSON invalide."
           },
@@ -1815,12 +2868,14 @@ export default {
       }
 
       const token =
-        body && body.token;
+        body &&
+        body.token;
 
       if (!token) {
         return json(
           {
-            success: false,
+            success:
+              false,
             error:
               "Jeton de question manquant."
           },
@@ -1840,24 +2895,31 @@ export default {
 
         const playerArtist =
           normalize(
-            body.artist || ""
+            body.artist ||
+              ""
           );
 
         const playerTitle =
           normalize(
-            body.title || ""
+            body.title ||
+              ""
           );
 
         const expectedArtist =
-          normalize(answer.artist);
+          normalize(
+            answer.artist
+          );
 
         const expectedTitle =
-          normalize(answer.title);
+          normalize(
+            answer.title
+          );
 
         let points = 0;
 
         if (
-          playerArtist !== "" &&
+          playerArtist !==
+            "" &&
           playerArtist ===
             expectedArtist
         ) {
@@ -1865,7 +2927,8 @@ export default {
         }
 
         if (
-          playerTitle !== "" &&
+          playerTitle !==
+            "" &&
           playerTitle ===
             expectedTitle
         ) {
@@ -1873,17 +2936,19 @@ export default {
         }
 
         return json({
-          success: true,
+          success:
+            true,
           points,
           correctArtist:
             answer.artist,
           correctTitle:
             answer.title
         });
-      } catch (error) {
+      } catch {
         return json(
           {
-            success: false,
+            success:
+              false,
             error:
               "Jeton invalide ou expiré."
           },
@@ -1894,14 +2959,12 @@ export default {
 
     /*
      * ============================================================
-     * ASSETS STATIQUES (public/)
+     * ASSETS STATIQUES
      * ============================================================
-     *
-     * Toute route qui n'est pas une API est servie
-     * depuis les fichiers statiques de public/
-     * (index.html, CSS, JS, etc.).
      */
 
-    return env.ASSETS.fetch(request);
+    return env.ASSETS.fetch(
+      request
+    );
   }
 };
