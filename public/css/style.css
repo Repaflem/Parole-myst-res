@@ -1,465 +1,548 @@
+/* ==========================================================
+   PAROLES MYSTÈRES — feuille de style
+   Direction : feuillet de paroles imprimé / pochette de disque.
+   Serif de caractère pour les paroles et titres, sans-serif
+   neutre pour l'interface, accent doré façon étiquette vinyle.
+   ========================================================== */
+
+:root {
+  --bg: #0b0e14;
+  --surface: #12161d;
+  --surface-alt: #171c24;
+  --border: #262c38;
+  --border-strong: #333b4a;
+
+  --accent: #d9a441;
+  --accent-hover: #e6b563;
+  --accent-ink: #221805;
+
+  --text: #f2efe9;
+  --text-muted: #8b909b;
+
+  --success: #7c9473;
+  --warn: #c79a52;
+  --error: #b4543a;
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+
+  --font-display: "Fraunces", Georgia, "Times New Roman", serif;
+  --font-ui: "IBM Plex Sans", -apple-system, "Segoe UI", Arial, sans-serif;
+}
+
 * {
-    box-sizing: border-box;
-    margin: 0;
-    padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  scroll-padding-top: 24px;
 }
 
 body {
-    min-height: 100vh;
-    font-family: Arial, Helvetica, sans-serif;
-    background: #0d0d12;
-    color: #ffffff;
-    padding: 30px 20px;
+  margin: 0;
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-ui);
+  -webkit-font-smoothing: antialiased;
 }
 
-.container,
-.game-container,
-.config-container {
-    width: 100%;
-    max-width: 700px;
-    margin: 0 auto;
-    text-align: center;
+a {
+  color: inherit;
 }
 
-/* ============================= */
-/* LOGO ET TITRES */
-/* ============================= */
-
-.logo {
-    font-size: 70px;
-    margin-bottom: 15px;
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
-h1 {
-    font-size: clamp(42px, 8vw, 72px);
-    font-weight: 800;
-    letter-spacing: -2px;
-    margin-bottom: 12px;
+.page {
+  max-width: 640px;
+  margin: 0 auto;
+  min-height: 100vh;
+  padding: 56px 20px 32px;
+  display: flex;
+  flex-direction: column;
 }
 
-.subtitle {
-    color: #a7a7b3;
-    font-size: 20px;
-    margin-bottom: 45px;
+.page-footer {
+  margin-top: auto;
+  padding-top: 48px;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  text-align: center;
 }
 
-/* ============================= */
-/* CARTES */
-/* ============================= */
+/* ==========================================================
+   NAVIGATION HAUTE (config / jeu)
+   ========================================================== */
 
-.card {
-    background: #17171f;
-    border: 1px solid #292934;
-    border-radius: 24px;
-    padding: 35px;
+.mark {
+  display: inline-block;
+  margin-bottom: 32px;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  text-decoration: none;
 }
 
-.card h2 {
-    font-size: 24px;
-    margin-bottom: 12px;
+.mark:hover {
+  color: var(--text);
 }
 
-.card p {
-    color: #a7a7b3;
-    line-height: 1.6;
-    margin-bottom: 30px;
+.link-muted {
+  color: var(--text-muted);
+  text-decoration: none;
+  font-size: 0.85rem;
 }
 
-/* ============================= */
-/* CARTE CONFIGURATION */
-/* ============================= */
-
-.config-card {
-    background: #17171f;
-    border: 1px solid #292934;
-    border-radius: 24px;
-    padding: 35px;
-    text-align: left;
+.link-muted:hover {
+  color: var(--text);
 }
 
-.config-card h2 {
-    text-align: center;
-    font-size: 24px;
-    margin-bottom: 30px;
+/* ==========================================================
+   BOUTONS
+   ========================================================== */
+
+.btn {
+  display: inline-block;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 14px 28px;
+  font-family: var(--font-ui);
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  text-align: center;
+  transition: transform 0.15s ease, background 0.15s ease;
 }
 
-/* ============================= */
-/* FORMULAIRE */
-/* ============================= */
-
-.form-group {
-    margin-bottom: 22px;
+.btn-primary {
+  background: var(--accent);
+  color: var(--accent-ink);
 }
 
-.form-group label {
-    display: block;
-    font-size: 15px;
-    font-weight: 700;
-    margin-bottom: 8px;
+.btn-primary:hover {
+  background: var(--accent-hover);
+  transform: translateY(-1px);
 }
 
-.form-group select {
-    width: 100%;
-    padding: 14px 15px;
-    border: 1px solid #292934;
-    border-radius: 12px;
-    background: #111117;
-    color: #ffffff;
-    font-size: 15px;
-    cursor: pointer;
-    outline: none;
+.btn-primary:active {
+  transform: translateY(0);
 }
 
-.form-group select:focus {
-    border-color: #555563;
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
 }
 
-/* ============================= */
-/* ANCIENNES CLASSES CONFIG */
-/* ============================= */
-
-.game-option {
-    text-align: left;
-    margin-bottom: 22px;
+.btn-block {
+  display: block;
+  width: 100%;
 }
 
-.game-option label {
-    display: block;
-    font-size: 15px;
-    font-weight: 700;
-    margin-bottom: 8px;
+/* ==========================================================
+   PAGE D'ACCUEIL
+   ========================================================== */
+
+.home {
+  text-align: center;
+  padding-top: 24px;
 }
 
-.game-option select {
-    width: 100%;
-    padding: 14px 15px;
-    border: 1px solid #292934;
-    border-radius: 12px;
-    background: #111117;
-    color: #ffffff;
-    font-size: 15px;
-    cursor: pointer;
-    outline: none;
+.home-title {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: clamp(3rem, 9vw, 5.5rem);
+  line-height: 0.95;
+  letter-spacing: -0.01em;
+  margin: 0 0 24px;
 }
 
-.game-option select:focus {
-    border-color: #555563;
+.home-lede {
+  max-width: 46ch;
+  margin: 0 auto 32px;
+  color: var(--text-muted);
+  font-size: 1.05rem;
+  line-height: 1.6;
 }
 
-/* ============================= */
-/* BOUTONS */
-/* ============================= */
-
-.play-button {
-    display: inline-block;
-    border: none;
-    border-radius: 14px;
-    padding: 17px 35px;
-    background: #ffffff;
-    color: #111111;
-    font-size: 18px;
-    font-weight: 700;
-    cursor: pointer;
-    text-decoration: none;
-    transition:
-        transform 0.2s,
-        background 0.2s;
+.credits {
+  margin: 56px 0 0;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  text-align: left;
 }
 
-.play-button:hover {
-    transform: translateY(-2px);
-    background: #eeeeee;
+.credits-row {
+  display: flex;
+  gap: 20px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--border);
 }
 
-.game-start-button {
-    display: block;
-    width: 100%;
-    border: none;
-    border-radius: 14px;
-    padding: 17px 35px;
-    margin-top: 10px;
-    background: #ffffff;
-    color: #111111;
-    font-size: 18px;
-    font-weight: 700;
-    cursor: pointer;
-    text-decoration: none;
-    transition:
-        transform 0.2s,
-        background 0.2s;
+.credits-row:last-child {
+  border-bottom: none;
 }
 
-.game-start-button:hover {
-    transform: translateY(-2px);
-    background: #eeeeee;
+.credits-row dt {
+  flex: 0 0 100px;
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: var(--text);
 }
 
-.game-start-button:active {
-    transform: translateY(0);
+.credits-row dd {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  line-height: 1.5;
 }
 
-.game-start-button:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
+/* ==========================================================
+   PAGE DE CONFIGURATION
+   ========================================================== */
+
+.config-title {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: clamp(1.9rem, 5vw, 2.4rem);
+  margin: 0 0 28px;
 }
 
-/* ============================= */
-/* CARACTÉRISTIQUES */
-/* ============================= */
-
-.features {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 12px;
-    margin-top: 25px;
+.config-sheet {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 28px;
+  text-align: left;
 }
 
-.feature {
-    background: #111117;
-    border-radius: 16px;
-    padding: 20px 10px;
+.config-sheet .btn-primary {
+  margin-top: 6px;
 }
-
-.feature-icon {
-    font-size: 27px;
-    margin-bottom: 8px;
-}
-
-.feature-title {
-    font-size: 14px;
-    font-weight: 700;
-}
-
-.feature-text {
-    color: #777784;
-    font-size: 12px;
-    margin-top: 5px;
-}
-
-.footer {
-    margin-top: 30px;
-    color: #555561;
-    font-size: 12px;
-}
-
-/* ============================= */
-/* LIEN RETOUR */
-/* ============================= */
 
 .back-link {
-    display: inline-block;
-    margin-top: 22px;
-    color: #777784;
-    text-decoration: none;
-    font-size: 14px;
+  display: inline-block;
+  margin-top: 22px;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  text-decoration: none;
 }
 
 .back-link:hover {
-    color: #ffffff;
+  color: var(--text);
 }
 
-/* ============================= */
-/* ÉCRAN DE QUESTION */
-/* ============================= */
+/* ==========================================================
+   CHAMPS DE FORMULAIRE (partagés config + réponse)
+   ========================================================== */
 
-.question-number {
-    color: #777784;
-    font-size: 14px;
-    margin-bottom: 20px;
+.field {
+  margin-bottom: 20px;
 }
 
-.lyrics-card {
-    background: #17171f;
-    border: 1px solid #292934;
-    border-radius: 24px;
-    padding: 35px 25px;
-    margin-bottom: 20px;
+.field:last-child {
+  margin-bottom: 0;
 }
 
-.lyrics-intro {
-    color: #a7a7b3;
-    font-size: 15px;
-    margin-bottom: 25px;
+.field label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: var(--text);
 }
 
-.lyrics {
-    font-size: clamp(22px, 5vw, 32px);
-    font-weight: 700;
-    line-height: 1.5;
+.field select,
+.field input {
+  width: 100%;
+  padding: 12px 14px;
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: 0.95rem;
+  outline: none;
 }
 
-.answer-card {
-    background: #111117;
-    border-radius: 20px;
-    padding: 25px;
-    text-align: left;
+.field select {
+  cursor: pointer;
 }
 
-.answer-card label {
-    display: block;
-    font-size: 14px;
-    font-weight: 700;
-    margin-bottom: 8px;
-    margin-top: 18px;
+.field select:focus,
+.field input:focus {
+  border-color: var(--accent);
 }
 
-.answer-card label:first-child {
-    margin-top: 0;
+.field input::placeholder {
+  color: var(--text-muted);
 }
 
-.answer-card label span {
-    color: #777784;
-    font-weight: 400;
+/* ==========================================================
+   PAGE DE JEU — en-tête et progression
+   ========================================================== */
+
+.game-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 28px;
 }
 
-.answer-card input {
-    width: 100%;
-    padding: 14px 15px;
-    border: 1px solid #292934;
-    border-radius: 12px;
-    background: #17171f;
-    color: #ffffff;
-    font-size: 16px;
-    outline: none;
+.score {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin: 0;
 }
 
-.answer-card input:focus {
-    border-color: #555563;
+.score strong {
+  color: var(--accent);
+  font-weight: 700;
 }
 
-.answer-button {
-    width: 100%;
-    margin-top: 25px;
+.progress {
+  margin-bottom: 28px;
 }
 
-.current-score {
-    margin-top: 20px;
-    color: #777784;
-    font-size: 14px;
+.progress-track {
+  height: 2px;
+  background: var(--border);
+  border-radius: 2px;
+  overflow: hidden;
 }
 
-.current-score strong {
-    color: #ffffff;
+.progress-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--accent);
+  transition: width 0.3s ease;
 }
 
-/* ============================= */
-/* RÉSULTAT */
-/* ============================= */
-
-.result-card {
-    margin-top: 25px;
-    padding: 30px 25px;
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 20px;
-    text-align: center;
-    animation: resultAppear 0.3s ease;
+.progress-label {
+  margin: 8px 0 0;
+  text-align: right;
+  font-size: 0.75rem;
+  color: var(--text-muted);
 }
 
-.result-icon {
-    font-size: 50px;
-    margin-bottom: 10px;
+/* ==========================================================
+   ENCART DE PAROLES
+   ========================================================== */
+
+.lyric-panel {
+  position: relative;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 40px 28px 32px;
+  margin-bottom: 20px;
+  overflow: hidden;
 }
 
-.result-card h2 {
-    margin: 0 0 10px;
-    font-size: 28px;
+.lyric-panel::before {
+  content: "\201C";
+  position: absolute;
+  top: -18px;
+  left: 18px;
+  font-family: var(--font-display);
+  font-size: 8rem;
+  line-height: 1;
+  color: var(--border-strong);
+  opacity: 0.4;
+  pointer-events: none;
 }
 
-.result-message {
-    margin-bottom: 25px;
-    opacity: 0.85;
+.lyric-panel::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 1px;
+  background-image: linear-gradient(90deg, var(--border) 50%, transparent 50%);
+  background-size: 10px 1px;
+  background-repeat: repeat-x;
 }
 
-.correct-answer {
-    margin: 20px 0;
-    padding: 20px;
-    background: rgba(0, 0, 0, 0.2);
-    border-radius: 15px;
+.lyric-hint {
+  position: relative;
+  z-index: 1;
+  margin: 0 0 18px;
+  font-size: 0.85rem;
+  color: var(--text-muted);
 }
 
-.correct-answer p {
-    margin: 6px 0;
+.lyric-text {
+  position: relative;
+  z-index: 1;
+  margin: 0;
+  border: none;
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 500;
+  font-size: clamp(1.4rem, 4.2vw, 2rem);
+  line-height: 1.5;
+  white-space: pre-line;
 }
 
-.correct-answer p strong {
-    display: block;
-    margin-top: 10px;
-    font-size: 14px;
-    opacity: 0.7;
-    text-transform: uppercase;
+/* ==========================================================
+   ENCART DE RÉPONSE
+   ========================================================== */
+
+.answer-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 24px;
+  text-align: left;
 }
 
-#correct-artist,
-#correct-title {
-    font-size: 20px;
-    font-weight: bold;
+/* ==========================================================
+   ENCART DE RÉSULTAT
+   ========================================================== */
+
+.result-panel {
+  margin-top: 20px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 28px;
+  text-align: center;
 }
 
-.points-earned {
-    margin: 20px 0;
-    font-size: 18px;
+.result-marker {
+  width: 40px;
+  height: 4px;
+  margin: 0 auto 18px;
+  border-radius: 2px;
+  background: var(--text-muted);
+}
+
+.result-marker.is-correct {
+  background: var(--success);
+}
+
+.result-marker.is-partial {
+  background: var(--warn);
+}
+
+.result-marker.is-wrong {
+  background: var(--error);
+}
+
+.result-marker.is-final {
+  background: var(--accent);
+}
+
+#result-title {
+  margin: 0 0 8px;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 1.6rem;
+}
+
+#result-message {
+  margin: 0 0 20px;
+  color: var(--text-muted);
+  font-size: 0.95rem;
+}
+
+.result-answer {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin: 0 0 20px;
+  padding: 18px;
+  background: var(--surface-alt);
+  border-radius: var(--radius-sm);
+  text-align: left;
+}
+
+.result-answer dt {
+  margin: 0 0 4px;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.result-answer dd {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 1.05rem;
+  color: var(--text);
+}
+
+.audio-container {
+  margin: 4px 0 20px;
+}
+
+.result-points {
+  margin: 0 0 20px;
+  font-size: 0.9rem;
+  color: var(--text-muted);
 }
 
 #points-earned {
-    font-size: 26px;
-    font-weight: bold;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.4rem;
+  color: var(--accent);
 }
 
-/* ============================= */
-/* AUDIO */
-/* ============================= */
+/* ==========================================================
+   ANIMATION — un seul mouvement, en réponse à une action
+   ========================================================== */
 
-.audio-container {
-    margin: 20px 0;
+@keyframes reveal {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
-/* ============================= */
-/* ANIMATION */
-/* ============================= */
-
-@keyframes resultAppear {
-
-    from {
-        opacity: 0;
-        transform: translateY(10px);
-    }
-
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+.result-panel {
+  animation: reveal 0.25s ease;
 }
 
-/* ============================= */
-/* RESPONSIVE MOBILE */
-/* ============================= */
+@media (prefers-reduced-motion: reduce) {
+  .result-panel {
+    animation: none;
+  }
+  .btn-primary,
+  .progress-fill {
+    transition: none;
+  }
+}
 
-@media (max-width: 550px) {
+/* ==========================================================
+   RESPONSIVE
+   ========================================================== */
 
-    body {
-        padding: 20px 15px;
-    }
+@media (max-width: 560px) {
+  .page {
+    padding: 40px 16px 24px;
+  }
 
-    .card,
-    .config-card {
-        padding: 25px 18px;
-    }
+  .config-sheet,
+  .lyric-panel,
+  .answer-panel,
+  .result-panel {
+    padding: 22px 18px;
+  }
 
-    .subtitle {
-        font-size: 17px;
-        margin-bottom: 30px;
-    }
+  .credits-row {
+    flex-direction: column;
+    gap: 4px;
+  }
 
-    .features {
-        grid-template-columns: 1fr;
-    }
-
-    .feature {
-        padding: 15px;
-    }
-
-    .config-card h2 {
-        font-size: 21px;
-    }
+  .result-answer {
+    grid-template-columns: 1fr;
+  }
 }
