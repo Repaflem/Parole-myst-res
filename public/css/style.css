@@ -219,7 +219,7 @@ a {
 
 .center-nav {
   text-align: center;
-  margin-top: 28px;
+  margin: 0 0 28px;
 }
 
 .btn-block {
