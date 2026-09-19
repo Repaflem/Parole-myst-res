@@ -6,7 +6,7 @@
 <title>Question · Paroles Mystères</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -16,25 +16,25 @@
   <main class="game">
 
     <header class="game-head">
-      <div class="mark">
-        <span class="eq" aria-hidden="true"><span></span><span></span><span></span><span></span></span>
+      <a href="index.html" class="mark" aria-label="Retour à l'accueil">
+        <span class="eq" aria-hidden="true">
+          <span></span><span></span><span></span><span></span>
+        </span>
         Paroles Mystères
-      </div>
+      </a>
+
       <p class="score">Score <strong id="score">0</strong></p>
     </header>
 
-    <div class="center-nav">
-      <a href="index.html" class="btn btn-secondary">Retour à l'accueil</a>
-    </div>
-
-    <p class="game-subnav">
+    <div class="game-subnav">
       <a href="jeu.html" class="link-muted">Modifier les paramètres</a>
-    </p>
+    </div>
 
     <div class="progress">
       <div class="progress-track">
         <div class="progress-fill" id="progress-fill"></div>
       </div>
+
       <p class="progress-label">
         Question <span id="current-question">1</span> / <span id="total-questions">10</span>
       </p>
@@ -75,6 +75,7 @@
           <dt>Artiste</dt>
           <dd id="correct-artist">—</dd>
         </div>
+
         <div>
           <dt>Titre</dt>
           <dd id="correct-title">—</dd>
