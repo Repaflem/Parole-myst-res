@@ -48,6 +48,9 @@ document.addEventListener("DOMContentLoaded", async function () {
     const scoreElement =
         document.getElementById("score");
 
+    const progressFillElement =
+        document.getElementById("progress-fill");
+
 
     /*
      * Vérification des éléments de la page.
@@ -180,7 +183,7 @@ document.addEventListener("DOMContentLoaded", async function () {
     async function loadQuestions() {
 
         lyricsElement.textContent =
-            "🎵 Recherche des chansons...";
+            "Recherche des chansons en cours.";
 
         validateButton.disabled = true;
 
@@ -331,7 +334,7 @@ document.addEventListener("DOMContentLoaded", async function () {
 
 
             lyricsElement.textContent =
-                "❌ Impossible de charger les questions. Réessaie dans quelques instants.";
+                "Impossible de charger les questions. Réessaie dans quelques instants.";
 
 
             return false;
@@ -361,6 +364,19 @@ document.addEventListener("DOMContentLoaded", async function () {
 
         currentQuestionElement.textContent =
             currentQuestionIndex + 1;
+
+
+        if (progressFillElement) {
+
+            const percent =
+                (
+                    currentQuestionIndex /
+                    gameQuestions.length
+                ) * 100;
+
+            progressFillElement.style.width =
+                percent + "%";
+        }
 
 
         lyricsElement.textContent =
@@ -528,36 +544,36 @@ document.addEventListener("DOMContentLoaded", async function () {
 
         if (points === 2) {
 
-            resultIcon.textContent =
-                "🎉";
+            resultIcon.className =
+                "result-marker is-correct";
 
             resultTitle.textContent =
-                "Excellent !";
+                "Trouvé.";
 
             resultMessage.textContent =
-                "Tu as trouvé l'artiste et le titre.";
+                "Artiste et titre corrects.";
 
         } else if (points === 1) {
 
-            resultIcon.textContent =
-                "👍";
+            resultIcon.className =
+                "result-marker is-partial";
 
             resultTitle.textContent =
-                "Bien joué !";
+                "Presque.";
 
             resultMessage.textContent =
-                "Tu as trouvé une des deux réponses.";
+                "Une des deux réponses est juste.";
 
         } else {
 
-            resultIcon.textContent =
-                "❌";
+            resultIcon.className =
+                "result-marker is-wrong";
 
             resultTitle.textContent =
-                "Dommage !";
+                "Raté.";
 
             resultMessage.textContent =
-                "Tu feras mieux à la prochaine.";
+                "Aucune des deux réponses n'est juste.";
         }
 
 
@@ -571,12 +587,12 @@ document.addEventListener("DOMContentLoaded", async function () {
         ) {
 
             nextQuestionButton.textContent =
-                "Voir mon score 🏆";
+                "Voir mon score";
 
         } else {
 
             nextQuestionButton.textContent =
-                "Question suivante →";
+                "Question suivante";
         }
     }
 
@@ -619,12 +635,12 @@ document.addEventListener("DOMContentLoaded", async function () {
             "block";
 
 
-        resultIcon.textContent =
-            "🏆";
+        resultIcon.className =
+            "result-marker is-final";
 
 
         resultTitle.textContent =
-            "Partie terminée !";
+            "Partie terminée.";
 
 
         resultMessage.textContent =
@@ -662,7 +678,7 @@ document.addEventListener("DOMContentLoaded", async function () {
         if (pointsLabel) {
 
             pointsLabel.innerHTML =
-                "🏆 Score final : " +
+                "Score final : " +
                 "<span>" +
                 score +
                 " / " +
@@ -675,7 +691,7 @@ document.addEventListener("DOMContentLoaded", async function () {
 
 
         nextQuestionButton.textContent =
-            "Rejouer 🔄";
+            "Rejouer";
 
 
         nextQuestionButton.onclick =
