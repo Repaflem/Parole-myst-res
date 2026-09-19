@@ -350,7 +350,6 @@ a {
   color: var(--text);
 }
 
-.field select,
 .field input {
   width: 100%;
   padding: 12px 14px;
@@ -363,11 +362,6 @@ a {
   outline: none;
 }
 
-.field select {
-  cursor: pointer;
-}
-
-.field select:focus,
 .field input:focus {
   border-color: var(--accent);
 }
@@ -375,6 +369,101 @@ a {
 .field input::placeholder {
   color: var(--text-muted);
 }
+
+.option-field {
+  border: none;
+  padding: 0;
+  margin: 0 0 24px;
+}
+
+.option-field:last-of-type {
+  margin-bottom: 28px;
+}
+
+.option-field legend {
+  width: 100%;
+  padding: 0;
+  margin-bottom: 10px;
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: var(--text);
+}
+
+.option-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.chip-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-alt);
+  color: var(--text-muted);
+  font-family: var(--font-ui);
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.chip:hover {
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+
+.chip-input:checked + .chip {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 600;
+}
+
+.chip-input:focus-visible + .chip {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.chip-bars {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 11px;
+}
+
+.chip-bars span {
+  display: block;
+  width: 3px;
+  border-radius: 1px;
+  background: currentColor;
+  opacity: 0.3;
+}
+
+.chip-bars span:nth-child(1) { height: 40%; }
+.chip-bars span:nth-child(2) { height: 70%; }
+.chip-bars span:nth-child(3) { height: 100%; }
+
+.chip-bars.lit-1 span:nth-child(1) { opacity: 1; }
+
+.chip-bars.lit-2 span:nth-child(1),
+.chip-bars.lit-2 span:nth-child(2) { opacity: 1; }
+
+.chip-bars.lit-3 span:nth-child(1),
+.chip-bars.lit-3 span:nth-child(2),
+.chip-bars.lit-3 span:nth-child(3) { opacity: 1; }
 
 /* ==========================================================
    PAGE DE JEU — en-tête et progression
