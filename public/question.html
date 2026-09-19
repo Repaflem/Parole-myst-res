@@ -1,225 +1,95 @@
 <!DOCTYPE html>
 <html lang="fr">
-
 <head>
-
-    <meta charset="UTF-8">
-
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0"
-    >
-
-    <title>
-        Question · Paroles Mystères
-    </title>
-
-    <link
-        rel="stylesheet"
-        href="css/style.css"
-    >
-
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Question · Paroles Mystères</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
 </head>
-
 <body>
 
-    <main class="game-container">
+<div class="page">
 
-        <!-- LOGO -->
+  <main class="game">
 
-        <div class="logo">
-            🎵
+    <header class="game-head">
+      <a href="jeu.html" class="link-muted">Modifier les paramètres</a>
+      <p class="score">Score <strong id="score">0</strong></p>
+    </header>
+
+    <div class="progress">
+      <div class="progress-track">
+        <div class="progress-fill" id="progress-fill"></div>
+      </div>
+      <p class="progress-label">
+        Question <span id="current-question">1</span> / <span id="total-questions">10</span>
+      </p>
+    </div>
+
+    <section class="lyric-panel">
+      <p class="lyric-hint">De quelle chanson viennent ces paroles ?</p>
+      <p class="lyric-text" id="lyrics">Chargement de la question…</p>
+    </section>
+
+    <section class="answer-panel" id="answer-card">
+
+      <div class="field">
+        <label for="artist">Artiste</label>
+        <input type="text" id="artist" placeholder="Nom de l'artiste" autocomplete="off">
+      </div>
+
+      <div class="field">
+        <label for="title">Titre de la chanson</label>
+        <input type="text" id="title" placeholder="Titre de la chanson" autocomplete="off">
+      </div>
+
+      <button type="button" id="validate-answer" class="btn btn-primary btn-block">
+        Valider ma réponse
+      </button>
+
+    </section>
+
+    <section class="result-panel" id="result-card" style="display: none;">
+
+      <div class="result-marker" id="result-icon"></div>
+
+      <h2 id="result-title">—</h2>
+      <p id="result-message">—</p>
+
+      <dl class="result-answer">
+        <div>
+          <dt>Artiste</dt>
+          <dd id="correct-artist">—</dd>
         </div>
+        <div>
+          <dt>Titre</dt>
+          <dd id="correct-title">—</dd>
+        </div>
+      </dl>
 
-        <!-- PROGRESSION -->
+      <div id="audio-container" class="audio-container" style="display: none;"></div>
 
-        <p class="question-number">
+      <p class="result-points">
+        <span id="points-earned">0</span> point(s) gagné(s)
+      </p>
 
-            Question
+      <button type="button" id="next-question" class="btn btn-primary btn-block">
+        Question suivante
+      </button>
 
-            <span id="current-question">
-                1
-            </span>
+    </section>
 
-            /
+  </main>
 
-            <span id="total-questions">
-                10
-            </span>
+  <footer class="page-footer">
+    Paroles Mystères — blind test musical francophone
+  </footer>
 
-        </p>
+</div>
 
-        <!-- CARTE DES PAROLES -->
-
-        <section class="lyrics-card">
-
-            <p class="lyrics-intro">
-                De quelle chanson sont extraites ces paroles ?
-            </p>
-
-            <div
-                class="lyrics"
-                id="lyrics"
-            >
-                Chargement de la question...
-            </div>
-
-        </section>
-
-        <!-- CARTE DE RÉPONSE -->
-
-        <section
-            class="answer-card"
-            id="answer-card"
-        >
-
-            <label for="artist">
-
-                <span>
-                    🎤 Artiste
-                </span>
-
-                <input
-                    type="text"
-                    id="artist"
-                    placeholder="Nom de l'artiste"
-                    autocomplete="off"
-                >
-
-            </label>
-
-            <label for="title">
-
-                <span>
-                    🎵 Titre de la chanson
-                </span>
-
-                <input
-                    type="text"
-                    id="title"
-                    placeholder="Titre de la chanson"
-                    autocomplete="off"
-                >
-
-            </label>
-
-            <button
-                type="button"
-                id="validate-answer"
-                class="play-button answer-button"
-            >
-                Valider ma réponse
-            </button>
-
-        </section>
-
-        <!-- RÉSULTAT -->
-
-        <section
-            class="result-card"
-            id="result-card"
-            style="display: none;"
-        >
-
-            <div
-                id="result-icon"
-                class="result-icon"
-            >
-                🎉
-            </div>
-
-            <h2 id="result-title">
-                Bravo !
-            </h2>
-
-            <p id="result-message">
-                Bonne réponse !
-            </p>
-
-            <div class="correct-answer">
-
-                <p>
-                    <strong>
-                        🎤 Artiste
-                    </strong>
-                </p>
-
-                <p id="correct-artist">
-                    -
-                </p>
-
-                <p>
-                    <strong>
-                        🎵 Titre
-                    </strong>
-                </p>
-
-                <p id="correct-title">
-                    -
-                </p>
-
-            </div>
-
-            <!-- AUDIO -->
-
-            <div
-                id="audio-container"
-                class="audio-container"
-                style="display: none;"
-            >
-            </div>
-
-            <p class="points-earned">
-
-                <span id="points-earned">
-                    0
-                </span>
-
-                point(s) gagné(s)
-
-            </p>
-
-            <button
-                type="button"
-                id="next-question"
-                class="play-button answer-button"
-            >
-                Question suivante →
-            </button>
-
-        </section>
-
-        <!-- SCORE -->
-
-        <p class="current-score">
-
-            Score :
-
-            <strong id="score">
-                0
-            </strong>
-
-        </p>
-
-        <!-- RETOUR -->
-
-        <a
-            href="jeu.html"
-            class="back-link"
-        >
-            ← Modifier les paramètres
-        </a>
-
-    </main>
-
-    <footer>
-        Paroles Mystères · Jeu musical
-    </footer>
-
-    <!-- JavaScript -->
-
-    <script src="js/question.js"></script>
-
+<script src="js/question.js"></script>
 </body>
-
 </html>
