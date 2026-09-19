@@ -1,123 +1,175 @@
 document.addEventListener(
-    "DOMContentLoaded",
-    function () {
 
-        const genreSelect =
-            document.getElementById("genre");
+"DOMContentLoaded",
 
-        const eraSelect =
-            document.getElementById("era");
+function () {
 
-        const difficultySelect =
-            document.getElementById("difficulty");
+const startButton =
 
-        const numberSelect =
-            document.getElementById("number");
-
-        const startButton =
-            document.getElementById("start-game");
+document.getElementById("start-game");
 
 
-        /*
-         * Vérification des éléments de la page.
-         */
+/*
 
-        if (
-            !genreSelect ||
-            !eraSelect ||
-            !difficultySelect ||
-            !numberSelect ||
-            !startButton
-        ) {
+* Vérification de l'élément de la page.
 
-            console.error(
-                "Paroles Mystères : impossible de trouver les éléments de configuration."
-            );
+*/
 
-            return;
-        }
+if (!startButton) {
+
+console.error(
+
+"Paroles Mystères : impossible de trouver le bouton de lancement."
+
+);
+
+return;
+}
 
 
-        /*
-         * Gestion du lancement de la partie.
-         */
+/*
 
-        startButton.addEventListener(
-            "click",
-            function () {
+* Lecture de la valeur sélectionnée
 
-                /*
-                 * Récupération des paramètres.
-                 */
+* dans un groupe de boutons radio (chips).
 
-                const gameSettings = {
+*/
 
-                    genre:
-                        genreSelect.value,
+function getSelectedValue(fieldName) {
 
-                    era:
-                        eraSelect.value,
+const checked =
 
-                    difficulty:
-                        difficultySelect.value,
+document.querySelector(
 
-                    number:
-                        Number(
-                            numberSelect.value
-                        )
-                };
+'input[name="' +
+
+fieldName +
+
+'"]:checked'
+
+);
+
+return checked ? checked.value : null;
+}
 
 
-                /*
-                 * Vérification du nombre
-                 * de questions.
-                 */
+/*
 
-                if (
-                    !gameSettings.number ||
-                    gameSettings.number < 1
-                ) {
+* Gestion du lancement de la partie.
 
-                    console.error(
-                        "Nombre de questions invalide."
-                    );
+*/
 
-                    return;
-                }
+startButton.addEventListener(
+
+"click",
+
+function () {
+
+/*
+
+* Récupération des paramètres.
+
+*/
+
+const gameSettings = {
+
+genre:
+
+getSelectedValue("genre") ||
+
+"all",
+
+era:
+
+getSelectedValue("era") ||
+
+"all",
+
+difficulty:
+
+getSelectedValue("difficulty") ||
+
+"all",
+
+number:
+
+Number(
+
+getSelectedValue("number") ||
+
+"10"
+)
+};
 
 
-                /*
-                 * Sauvegarde des paramètres.
-                 */
+/*
 
-                try {
+* Vérification du nombre
 
-                    localStorage.setItem(
-                        "parolesMysteresSettings",
-                        JSON.stringify(
-                            gameSettings
-                        )
-                    );
+* de questions.
 
-                } catch (error) {
+*/
 
-                    console.error(
-                        "Impossible de sauvegarder les paramètres :",
-                        error
-                    );
+if (
 
-                    return;
-                }
+!gameSettings.number ||
+
+gameSettings.number < 1
+
+) {
+
+console.error(
+
+"Nombre de questions invalide."
+
+);
+
+return;
+}
 
 
-                /*
-                 * Passage à la page du quiz.
-                 */
+/*
 
-                window.location.href =
-                    "question.html";
-            }
-        );
+* Sauvegarde des paramètres.
 
-    }
+*/
+
+try {
+
+localStorage.setItem(
+
+"parolesMysteresSettings",
+
+JSON.stringify(
+
+gameSettings
+)
+);
+
+} catch (error) {
+
+console.error(
+
+"Impossible de sauvegarder les paramètres :",
+
+error
+
+);
+
+return;
+}
+
+
+/*
+
+* Passage à la page du quiz.
+
+*/
+
+window.location.href =
+
+"question.html";
+}
+);
+}
 );
