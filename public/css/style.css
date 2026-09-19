@@ -2,7 +2,7 @@
    PAROLES MYSTÈRES — feuille de style
    Direction : feuillet de paroles imprimé / pochette de disque.
    Serif de caractère pour les paroles et titres, sans-serif
-   neutre pour l'interface, accent doré façon étiquette vinyle.
+   neutre pour l’interface, accent doré façon étiquette vinyle.
    ========================================================== */
 
 :root {
@@ -109,12 +109,15 @@ a {
    ========================================================== */
 
 .mark {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 32px;
-  font-size: 0.85rem;
-  color: var(--text-muted);
+  justify-content: center;
+  gap: 10px;
+  margin: 0 auto 32px;
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  font-weight: 600;
+  color: var(--text);
   text-decoration: none;
 }
 
