@@ -1,5 +1,12 @@
 {
   "name": "paroles-mysteres",
   "pages_build_output_dir": "./public",
-  "compatibility_date": "2026-09-17"
+  "compatibility_date": "2026-09-17",
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "paroles-mysteres-db",
+      "database_id": "7c8134af-8e94-4b46-b178-a5ac2fe7c52c"
+    }
+  ]
 }
