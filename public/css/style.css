@@ -45,6 +45,37 @@ body {
   color: var(--text);
   font-family: var(--font-ui);
   -webkit-font-smoothing: antialiased;
+  position: relative;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(
+      circle at 50% -10%,
+      rgba(217, 164, 65, 0.10),
+      transparent 55%
+    );
+}
+
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.05;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+}
+
+.page {
+  position: relative;
+  z-index: 1;
 }
 
 a {
@@ -78,7 +109,9 @@ a {
    ========================================================== */
 
 .mark {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   margin-bottom: 32px;
   font-size: 0.85rem;
   color: var(--text-muted);
@@ -87,6 +120,36 @@ a {
 
 .mark:hover {
   color: var(--text);
+}
+
+.eq {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 14px;
+  flex: none;
+}
+
+.eq span {
+  display: block;
+  width: 3px;
+  border-radius: 1px;
+  background: var(--accent);
+}
+
+.eq span:nth-child(1) { height: 40%; }
+.eq span:nth-child(2) { height: 100%; }
+.eq span:nth-child(3) { height: 65%; }
+.eq span:nth-child(4) { height: 85%; }
+
+.eq-lg {
+  height: 30px;
+  gap: 5px;
+  margin: 0 0 22px;
+}
+
+.eq-lg span {
+  width: 5px;
 }
 
 .link-muted {
@@ -125,6 +188,7 @@ a {
 .btn-primary:hover {
   background: var(--accent-hover);
   transform: translateY(-1px);
+  box-shadow: 0 10px 26px -10px rgba(217, 164, 65, 0.55);
 }
 
 .btn-primary:active {
@@ -135,6 +199,27 @@ a {
   opacity: 0.5;
   cursor: not-allowed;
   transform: none;
+  box-shadow: none;
+}
+
+.btn-secondary {
+  background: transparent;
+  color: var(--accent);
+  border: 1px solid var(--accent);
+}
+
+.btn-secondary:hover {
+  background: rgba(217, 164, 65, 0.1);
+  transform: translateY(-1px);
+}
+
+.btn-secondary:active {
+  transform: translateY(0);
+}
+
+.center-nav {
+  text-align: center;
+  margin-top: 28px;
 }
 
 .btn-block {
@@ -157,7 +242,15 @@ a {
   font-size: clamp(3rem, 9vw, 5.5rem);
   line-height: 0.95;
   letter-spacing: -0.01em;
-  margin: 0 0 24px;
+  margin: 0 0 20px;
+}
+
+.home-rule {
+  width: 48px;
+  height: 3px;
+  margin: 0 auto 24px;
+  background: var(--accent);
+  border-radius: 2px;
 }
 
 .home-lede {
@@ -190,7 +283,7 @@ a {
   flex: 0 0 100px;
   font-weight: 600;
   font-size: 0.85rem;
-  color: var(--text);
+  color: var(--accent);
 }
 
 .credits-row dd {
@@ -212,8 +305,10 @@ a {
 }
 
 .config-sheet {
+  position: relative;
   background: var(--surface);
   border: 1px solid var(--border);
+  border-top: 3px solid var(--accent);
   border-radius: var(--radius-md);
   padding: 28px;
   text-align: left;
@@ -303,6 +398,10 @@ a {
   font-weight: 700;
 }
 
+.game-subnav {
+  margin: 0 0 24px;
+}
+
 .progress {
   margin-bottom: 28px;
 }
@@ -336,6 +435,7 @@ a {
   position: relative;
   background: var(--surface);
   border: 1px solid var(--border);
+  border-top: 3px solid var(--accent);
   border-radius: var(--radius-md);
   padding: 40px 28px 32px;
   margin-bottom: 20px;
