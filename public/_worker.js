@@ -2060,7 +2060,7 @@ export default {
         );
 
       const iterations =
-        150000;
+        100000;
 
       const derivedBits =
         await crypto.subtle.deriveBits(
