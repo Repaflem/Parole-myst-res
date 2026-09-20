@@ -13,9 +13,6 @@ export default {
 
     const LASTFM_API_KEY = env.LASTFM_API_KEY || "";
 
-    const SESSION_DURATION_SECONDS =
-      60 * 60 * 24 * 30;
-
     /*
      * ============================================================
      * CATALOGUES
@@ -208,31 +205,28 @@ export default {
 
     /*
      * ============================================================
-     * OUTILS GENERAUX
+     * JETON DE REPONSE (anti-triche)
      * ============================================================
      */
 
-    function json(data, status = 200, extraHeaders = {}) {
-      return new Response(
-        JSON.stringify(data),
-        {
-          status,
-          headers: {
-            "Content-Type":
-              "application/json; charset=utf-8",
-            "Cache-Control": "no-store",
-            ...extraHeaders
-          }
-        }
-      );
-    }
+    async function getAnswerKey() {
+      const secret =
+        env.ANSWER_SECRET ||
+        "paroles-mysteres-cle-par-defaut-a-changer";
 
-    async function readJson(request) {
-      try {
-        return await request.json();
-      } catch {
-        return null;
-      }
+      const digest =
+        await crypto.subtle.digest(
+          "SHA-256",
+          new TextEncoder().encode(secret)
+        );
+
+      return crypto.subtle.importKey(
+        "raw",
+        digest,
+        { name: "AES-GCM" },
+        false,
+        ["encrypt", "decrypt"]
+      );
     }
 
     function bytesToBase64Url(bytes) {
@@ -271,439 +265,7 @@ export default {
       return bytes;
     }
 
-    /*
-     * ============================================================
-     * AUTHENTIFICATION
-     * ============================================================
-     *
-     * Les mots de passe sont hachés avec PBKDF2 + SHA-256.
-     *
-     * Format enregistré :
-     *
-     * pbkdf2$iterations$salt$hash
-     *
-     * Le mot de passe original n'est jamais enregistré.
-     */
-
-    const PASSWORD_ITERATIONS = 120000;
-
-    async function hashPassword(password) {
-      const salt =
-        crypto.getRandomValues(
-          new Uint8Array(16)
-        );
-
-      const passwordBytes =
-        new TextEncoder().encode(
-          password
-        );
-
-      const key =
-        await crypto.subtle.importKey(
-          "raw",
-          passwordBytes,
-          {
-            name: "PBKDF2"
-          },
-          false,
-          ["deriveBits"]
-        );
-
-      const derivedBits =
-        await crypto.subtle.deriveBits(
-          {
-            name: "PBKDF2",
-            salt,
-            iterations:
-              PASSWORD_ITERATIONS,
-            hash: "SHA-256"
-          },
-          key,
-          256
-        );
-
-      const hash =
-        new Uint8Array(
-          derivedBits
-        );
-
-      return (
-        "pbkdf2$" +
-        PASSWORD_ITERATIONS +
-        "$" +
-        bytesToBase64Url(salt) +
-        "$" +
-        bytesToBase64Url(hash)
-      );
-    }
-
-    function constantTimeEqual(
-      a,
-      b
-    ) {
-      if (a.length !== b.length) {
-        return false;
-      }
-
-      let result = 0;
-
-      for (
-        let i = 0;
-        i < a.length;
-        i++
-      ) {
-        result |=
-          a[i] ^ b[i];
-      }
-
-      return result === 0;
-    }
-
-    async function verifyPassword(
-      password,
-      storedHash
-    ) {
-      try {
-        const parts =
-          storedHash.split("$");
-
-        if (
-          parts.length !== 4 ||
-          parts[0] !== "pbkdf2"
-        ) {
-          return false;
-        }
-
-        const iterations =
-          Number(parts[1]);
-
-        const salt =
-          base64UrlToBytes(parts[2]);
-
-        const expected =
-          base64UrlToBytes(parts[3]);
-
-        if (
-          !Number.isFinite(iterations) ||
-          iterations < 10000 ||
-          iterations > 1000000
-        ) {
-          return false;
-        }
-
-        const passwordBytes =
-          new TextEncoder().encode(
-            password
-          );
-
-        const key =
-          await crypto.subtle.importKey(
-            "raw",
-            passwordBytes,
-            {
-              name: "PBKDF2"
-            },
-            false,
-            ["deriveBits"]
-          );
-
-        const derivedBits =
-          await crypto.subtle.deriveBits(
-            {
-              name: "PBKDF2",
-              salt,
-              iterations,
-              hash: "SHA-256"
-            },
-            key,
-            256
-          );
-
-        const actual =
-          new Uint8Array(
-            derivedBits
-          );
-
-        return constantTimeEqual(
-          actual,
-          expected
-        );
-      } catch {
-        return false;
-      }
-    }
-
-    function normalizeEmail(email) {
-      return String(email || "")
-        .trim()
-        .toLowerCase();
-    }
-
-    function validateEmail(email) {
-      if (
-        typeof email !== "string" ||
-        email.length < 5 ||
-        email.length > 254
-      ) {
-        return false;
-      }
-
-      return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
-        email
-      );
-    }
-
-    function validateUsername(username) {
-      if (
-        typeof username !== "string"
-      ) {
-        return false;
-      }
-
-      const value =
-        username.trim();
-
-      if (
-        value.length < 3 ||
-        value.length > 20
-      ) {
-        return false;
-      }
-
-      /*
-       * Lettres, chiffres, espaces,
-       * tiret et underscore.
-       */
-
-      return /^[A-Za-zÀ-ÖØ-öø-ÿ0-9 _-]+$/.test(
-        value
-      );
-    }
-
-    function normalizeUsername(username) {
-      return String(username || "")
-        .trim()
-        .replace(/\s+/g, " ");
-    }
-
-    function getSessionId(request) {
-      const cookie =
-        request.headers.get(
-          "Cookie"
-        );
-
-      if (!cookie) {
-        return null;
-      }
-
-      const cookies =
-        cookie.split(";");
-
-      for (const item of cookies) {
-        const separator =
-          item.indexOf("=");
-
-        if (separator === -1) {
-          continue;
-        }
-
-        const name =
-          item
-            .slice(0, separator)
-            .trim();
-
-        const value =
-          item
-            .slice(separator + 1)
-            .trim();
-
-        if (
-          name ===
-          "__Host-paroles-session"
-        ) {
-          return decodeURIComponent(
-            value
-          );
-        }
-      }
-
-      return null;
-    }
-
-    async function createSession(
-      userId
-    ) {
-      const sessionId =
-        crypto.randomUUID();
-
-      const now =
-        Math.floor(
-          Date.now() / 1000
-        );
-
-      const expiresAt =
-        now +
-        SESSION_DURATION_SECONDS;
-
-      await env.DB.prepare(
-        `
-        INSERT INTO sessions
-        (id, user_id, expires_at, created_at)
-        VALUES (?, ?, ?, ?)
-        `
-      )
-        .bind(
-          sessionId,
-          userId,
-          expiresAt,
-          now
-        )
-        .run();
-
-      return {
-        sessionId,
-        expiresAt
-      };
-    }
-
-    function sessionCookie(
-      sessionId
-    ) {
-      return (
-        "__Host-paroles-session=" +
-        encodeURIComponent(
-          sessionId
-        ) +
-        "; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=" +
-        SESSION_DURATION_SECONDS
-      );
-    }
-
-    function clearSessionCookie() {
-      return (
-        "__Host-paroles-session=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0"
-      );
-    }
-
-    async function getCurrentUser(
-      request
-    ) {
-      if (!env.DB) {
-        throw new Error(
-          "Base D1 non disponible."
-        );
-      }
-
-      const sessionId =
-        getSessionId(request);
-
-      if (!sessionId) {
-        return null;
-      }
-
-      const now =
-        Math.floor(
-          Date.now() / 1000
-        );
-
-      const result =
-        await env.DB.prepare(
-          `
-          SELECT
-            sessions.id AS session_id,
-            sessions.expires_at,
-            users.id,
-            users.username,
-            users.email,
-            users.created_at
-          FROM sessions
-          INNER JOIN users
-            ON users.id = sessions.user_id
-          WHERE sessions.id = ?
-            AND sessions.expires_at > ?
-          LIMIT 1
-          `
-        )
-          .bind(
-            sessionId,
-            now
-          )
-          .first();
-
-      if (!result) {
-        return null;
-      }
-
-      return {
-        id: result.id,
-        username:
-          result.username,
-        email:
-          result.email,
-        created_at:
-          result.created_at
-      };
-    }
-
-    /*
-     * Nettoyage léger des sessions expirées.
-     *
-     * On ne fait pas cette opération avant chaque requête
-     * pour éviter de ralentir inutilement le site.
-     */
-
-    async function cleanupExpiredSessions() {
-      if (!env.DB) {
-        return;
-      }
-
-      const now =
-        Math.floor(
-          Date.now() / 1000
-        );
-
-      await env.DB.prepare(
-        `
-        DELETE FROM sessions
-        WHERE expires_at <= ?
-        `
-      )
-        .bind(now)
-        .run();
-    }
-
-    /*
-     * ============================================================
-     * JETON DE REPONSE (ANTI-TRICHE)
-     * ============================================================
-     */
-
-    async function getAnswerKey() {
-      const secret =
-        env.ANSWER_SECRET ||
-        "paroles-mysteres-cle-par-defaut-a-changer";
-
-      const digest =
-        await crypto.subtle.digest(
-          "SHA-256",
-          new TextEncoder().encode(
-            secret
-          )
-        );
-
-      return crypto.subtle.importKey(
-        "raw",
-        digest,
-        { name: "AES-GCM" },
-        false,
-        ["encrypt", "decrypt"]
-      );
-    }
-
-    async function encryptAnswer(
-      payload,
-      key
-    ) {
+    async function encryptAnswer(payload, key) {
       const iv =
         crypto.getRandomValues(
           new Uint8Array(12)
@@ -716,10 +278,7 @@ export default {
 
       const ciphertext =
         await crypto.subtle.encrypt(
-          {
-            name: "AES-GCM",
-            iv
-          },
+          { name: "AES-GCM", iv },
           key,
           data
         );
@@ -733,21 +292,14 @@ export default {
       combined.set(iv, 0);
 
       combined.set(
-        new Uint8Array(
-          ciphertext
-        ),
+        new Uint8Array(ciphertext),
         iv.length
       );
 
-      return bytesToBase64Url(
-        combined
-      );
+      return bytesToBase64Url(combined);
     }
 
-    async function decryptAnswer(
-      token,
-      key
-    ) {
+    async function decryptAnswer(token, key) {
       const bytes =
         base64UrlToBytes(token);
 
@@ -759,10 +311,7 @@ export default {
 
       const decrypted =
         await crypto.subtle.decrypt(
-          {
-            name: "AES-GCM",
-            iv
-          },
+          { name: "AES-GCM", iv },
           key,
           ciphertext
         );
@@ -779,6 +328,21 @@ export default {
      * OUTILS
      * ============================================================
      */
+
+    function json(data, status = 200) {
+      return new Response(
+        JSON.stringify(data),
+        {
+          status,
+          headers: {
+            "Content-Type":
+              "application/json; charset=utf-8",
+            "Cache-Control":
+              "no-store"
+          }
+        }
+      );
+    }
 
     async function fetchTimeout(
       resource,
@@ -811,10 +375,7 @@ export default {
     function sleep(ms) {
       return new Promise(
         resolve =>
-          setTimeout(
-            resolve,
-            ms
-          )
+          setTimeout(resolve, ms)
       );
     }
 
@@ -828,8 +389,7 @@ export default {
       ) {
         const j =
           Math.floor(
-            Math.random() *
-              (i + 1)
+            Math.random() * (i + 1)
           );
 
         [copy[i], copy[j]] =
@@ -843,18 +403,9 @@ export default {
       return String(value || "")
         .toLowerCase()
         .normalize("NFD")
-        .replace(
-          /[\u0300-\u036f]/g,
-          ""
-        )
-        .replace(
-          /[’']/g,
-          "'"
-        )
-        .replace(
-          /[^a-z0-9]+/g,
-          " "
-        )
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[’']/g, "'")
+        .replace(/[^a-z0-9]+/g, " ")
         .trim();
     }
 
@@ -871,13 +422,8 @@ export default {
         : null;
     }
 
-    function isInEra(
-      year,
-      era
-    ) {
-      if (
-        era === "all"
-      ) {
+    function isInEra(year, era) {
+      if (era === "all") {
         return true;
       }
 
@@ -886,18 +432,12 @@ export default {
       }
 
       const ranges = {
-        "1960-1979":
-          [1960, 1979],
-        "1980-1989":
-          [1980, 1989],
-        "1990-1999":
-          [1990, 1999],
-        "2000-2009":
-          [2000, 2009],
-        "2010-2019":
-          [2010, 2019],
-        "2020-2026":
-          [2020, 2026]
+        "1960-1979": [1960, 1979],
+        "1980-1989": [1980, 1989],
+        "1990-1999": [1990, 1999],
+        "2000-2009": [2000, 2009],
+        "2010-2019": [2010, 2019],
+        "2020-2026": [2020, 2026]
       };
 
       const range =
@@ -914,10 +454,7 @@ export default {
     }
 
     function looksFrench(text) {
-      if (
-        !text ||
-        text.length < 80
-      ) {
+      if (!text || text.length < 80) {
         return false;
       }
 
@@ -976,13 +513,8 @@ export default {
 
       let score = 0;
 
-      for (
-        const word
-        of frenchWords
-      ) {
-        if (
-          lower.includes(word)
-        ) {
+      for (const word of frenchWords) {
+        if (lower.includes(word)) {
           score++;
         }
       }
@@ -1019,9 +551,8 @@ export default {
       result =
         result
           .split("\n")
-          .map(
-            line =>
-              line.trim()
+          .map(line =>
+            line.trim()
           )
           .filter(Boolean)
           .join("\n");
@@ -1040,9 +571,8 @@ export default {
       const lines =
         cleaned
           .split("\n")
-          .map(
-            line =>
-              line.trim()
+          .map(line =>
+            line.trim()
           )
           .filter(
             line =>
@@ -1055,40 +585,28 @@ export default {
               )
           );
 
-      if (
-        lines.length < 2
-      ) {
+      if (lines.length < 2) {
         return null;
       }
 
-      const possibleStarts =
-        [];
+      const possibleStarts = [];
 
       for (
         let i = 0;
-        i <
-          lines.length - 1;
+        i < lines.length - 1;
         i++
       ) {
         if (
-          lines[i].length >=
-            12 &&
-          lines[i + 1].length >=
-            12 &&
-          lines[i].length <=
-            180 &&
-          lines[i + 1].length <=
-            180
+          lines[i].length >= 12 &&
+          lines[i + 1].length >= 12 &&
+          lines[i].length <= 180 &&
+          lines[i + 1].length <= 180
         ) {
-          possibleStarts.push(
-            i
-          );
+          possibleStarts.push(i);
         }
       }
 
-      if (
-        !possibleStarts.length
-      ) {
+      if (!possibleStarts.length) {
         return null;
       }
 
@@ -1096,7 +614,7 @@ export default {
         possibleStarts[
           Math.floor(
             Math.random() *
-              possibleStarts.length
+            possibleStarts.length
           )
         ];
 
@@ -1106,15 +624,11 @@ export default {
           start + 4
         );
 
-      if (
-        selected.length < 2
-      ) {
+      if (selected.length < 2) {
         return null;
       }
 
-      return selected.join(
-        "\n"
-      );
+      return selected.join("\n");
     }
 
     /*
@@ -1164,9 +678,7 @@ export default {
       const endpoint =
         "https://musicbrainz.org/ws/2/recording" +
         "?query=" +
-        encodeURIComponent(
-          query
-        ) +
+        encodeURIComponent(query) +
         "&fmt=json&limit=50";
 
       const response =
@@ -1256,8 +768,7 @@ export default {
             (!year ||
               releaseYear < year)
           ) {
-            year =
-              releaseYear;
+            year = releaseYear;
           }
 
           if (
@@ -1278,8 +789,7 @@ export default {
               (!year ||
                 rgYear < year)
             ) {
-              year =
-                rgYear;
+              year = rgYear;
             }
           }
         }
@@ -1306,8 +816,7 @@ export default {
           recording.title,
         year,
         mbid:
-          recording.id ||
-          null
+          recording.id || null
       };
     }
 
@@ -1324,13 +833,9 @@ export default {
       const endpoint =
         "https://lrclib.net/api/get" +
         "?artist_name=" +
-        encodeURIComponent(
-          artist
-        ) +
+        encodeURIComponent(artist) +
         "&track_name=" +
-        encodeURIComponent(
-          title
-        );
+        encodeURIComponent(title);
 
       const response =
         await fetchTimeout(
@@ -1344,9 +849,7 @@ export default {
           8000
         );
 
-      if (
-        !response.ok
-      ) {
+      if (!response.ok) {
         return null;
       }
 
@@ -1374,9 +877,7 @@ export default {
       artist,
       title
     ) {
-      if (
-        !LASTFM_API_KEY
-      ) {
+      if (!LASTFM_API_KEY) {
         return null;
       }
 
@@ -1409,9 +910,7 @@ export default {
           7000
         );
 
-      if (
-        !response.ok
-      ) {
+      if (!response.ok) {
         return null;
       }
 
@@ -1430,9 +929,7 @@ export default {
       const number =
         Number(listeners);
 
-      return Number.isFinite(
-        number
-      )
+      return Number.isFinite(number)
         ? number
         : null;
     }
@@ -1457,8 +954,7 @@ export default {
       if (
         difficulty === "easy"
       ) {
-        return listeners >=
-          300000;
+        return listeners >= 300000;
       }
 
       if (
@@ -1499,8 +995,7 @@ export default {
           genre,
           era,
           difficulty,
-          requested:
-            number
+          requested: number
         },
 
         artistsCatalog: 0,
@@ -1530,49 +1025,33 @@ export default {
 
       let artists = [];
 
-      if (
-        genre === "all"
-      ) {
+      if (genre === "all") {
         for (
           const category
-          of Object.keys(
-            ARTISTS
-          )
+          of Object.keys(ARTISTS)
         ) {
           artists.push(
-            ...ARTISTS[
-              category
-            ]
+            ...ARTISTS[category]
           );
         }
       } else {
         artists =
-          ARTISTS[
-            genre
-          ] || [];
+          ARTISTS[genre] || [];
       }
 
       artists = [
-        ...new Set(
-          artists
-        )
+        ...new Set(artists)
       ];
 
       diagnostics.artistsCatalog =
         artists.length;
 
-      artists =
-        shuffle(
-          artists
-        );
+      artists = shuffle(artists);
 
       const targetArtistCount =
         Math.min(
           artists.length,
-          Math.max(
-            12,
-            number * 2
-          )
+          Math.max(12, number * 2)
         );
 
       const selectedArtists =
@@ -1603,8 +1082,7 @@ export default {
             recordings.length;
 
           if (
-            recordings.length ===
-            0
+            recordings.length === 0
           ) {
             diagnostics.artistsWithoutRecordings++;
           } else {
@@ -1642,16 +1120,12 @@ export default {
           }
 
           if (!fromCache) {
-            await sleep(
-              1200
-            );
+            await sleep(1200);
           }
-        } catch (
-          error
-        ) {
+        } catch (error) {
           if (
-            diagnostics.errors
-              .length < 10
+            diagnostics.errors.length <
+            10
           ) {
             diagnostics.errors.push(
               "MusicBrainz " +
@@ -1664,9 +1138,7 @@ export default {
             );
           }
 
-          await sleep(
-            1500
-          );
+          await sleep(1500);
         }
       }
 
@@ -1701,29 +1173,22 @@ export default {
         candidates.length;
 
       candidates =
-        shuffle(
-          candidates
-        );
+        shuffle(candidates);
 
       candidates =
         candidates.slice(
           0,
           Math.min(
             candidates.length,
-            Math.max(
-              40,
-              number * 6
-            )
+            Math.max(40, number * 6)
           )
         );
 
-      const batchSize =
-        6;
+      const batchSize = 6;
 
       for (
         let i = 0;
-        i <
-          candidates.length;
+        i < candidates.length;
         i += batchSize
       ) {
         if (
@@ -1770,19 +1235,15 @@ export default {
                     return {
                       candidate,
                       cleaned,
-                      isFrench:
-                        false,
-                      listeners:
-                        null
+                      isFrench: false,
+                      listeners: null
                     };
                   }
 
-                  let listeners =
-                    null;
+                  let listeners = null;
 
                   if (
-                    difficulty !==
-                      "all" &&
+                    difficulty !== "all" &&
                     LASTFM_API_KEY
                   ) {
                     try {
@@ -1792,20 +1253,17 @@ export default {
                           candidate.title
                         );
                     } catch {
-                      listeners =
-                        null;
+                      listeners = null;
                     }
                   }
 
                   return {
                     candidate,
                     cleaned,
-                    isFrench:
-                      true,
+                    isFrench: true,
                     listeners,
                     lastFmQueried:
-                      difficulty !==
-                        "all" &&
+                      difficulty !== "all" &&
                       Boolean(
                         LASTFM_API_KEY
                       )
@@ -1831,27 +1289,23 @@ export default {
 
           diagnostics.lyricsFound++;
 
-          if (
-            !result.isFrench
-          ) {
+          if (!result.isFrench) {
             diagnostics.lyricsNotFrench++;
             continue;
           }
 
           diagnostics.lyricsFrench++;
 
+          const cleaned =
+            result.cleaned;
+
           const listeners =
             result.listeners;
 
-          if (
-            result.lastFmQueried
-          ) {
+          if (result.lastFmQueried) {
             diagnostics.lastFmRequests++;
 
-            if (
-              listeners !==
-              null
-            ) {
+            if (listeners !== null) {
               diagnostics.lastFmFound++;
             }
           }
@@ -1869,7 +1323,7 @@ export default {
 
           const excerpt =
             createExcerpt(
-              result.cleaned
+              cleaned
             );
 
           if (!excerpt) {
@@ -1879,8 +1333,7 @@ export default {
           diagnostics.excerptsCreated++;
 
           const finalDifficulty =
-            difficulty ===
-            "all"
+            difficulty === "all"
               ? "medium"
               : difficulty;
 
@@ -1946,9 +1399,7 @@ export default {
         }
 
         const maxPerArtist =
-          number <= 5
-            ? 1
-            : 2;
+          number <= 5 ? 1 : 2;
 
         const artistKey =
           normalize(
@@ -2004,7 +1455,7 @@ export default {
 
     /*
      * ============================================================
-     * ROUTE : TEST
+     * API TEST
      * ============================================================
      */
 
@@ -2017,543 +1468,6 @@ export default {
         message:
           "Paroles Mystères API fonctionne !"
       });
-    }
-
-    /*
-     * ============================================================
-     * ROUTE : INSCRIPTION
-     * ============================================================
-     */
-
-    if (
-      url.pathname ===
-        "/api/register" &&
-      request.method ===
-        "POST"
-    ) {
-      if (!env.DB) {
-        return json(
-          {
-            success:
-              false,
-            error:
-              "La base de données n'est pas configurée."
-          },
-          500
-        );
-      }
-
-      const body =
-        await readJson(
-          request
-        );
-
-      if (!body) {
-        return json(
-          {
-            success:
-              false,
-            error:
-              "Données invalides."
-          },
-          400
-        );
-      }
-
-      const username =
-        normalizeUsername(
-          body.username
-        );
-
-      const email =
-        normalizeEmail(
-          body.email
-        );
-
-      const password =
-        typeof body.password ===
-        "string"
-          ? body.password
-          : "";
-
-      if (
-        !validateUsername(
-          username
-        )
-      ) {
-        return json(
-          {
-            success:
-              false,
-            error:
-              "Le pseudo doit contenir entre 3 et 20 caractères et uniquement des lettres, chiffres, espaces, tirets ou underscores."
-          },
-          400
-        );
-      }
-
-      if (
-        !validateEmail(
-          email
-        )
-      ) {
-        return json(
-          {
-            success:
-              false,
-            error:
-              "Adresse e-mail invalide."
-          },
-          400
-        );
-      }
-
-      if (
-        password.length <
-        8
-      ) {
-        return json(
-          {
-            success:
-              false,
-            error:
-              "Le mot de passe doit contenir au moins 8 caractères."
-          },
-          400
-        );
-      }
-
-      if (
-        password.length >
-        128
-      ) {
-        return json(
-          {
-            success:
-              false,
-            error:
-              "Le mot de passe est trop long."
-          },
-          400
-        );
-      }
-
-      try {
-        const existingEmail =
-          await env.DB.prepare(
-            `
-            SELECT id
-            FROM users
-            WHERE email = ?
-            LIMIT 1
-            `
-          )
-            .bind(email)
-            .first();
-
-        if (
-          existingEmail
-        ) {
-          return json(
-            {
-              success:
-                false,
-              error:
-                "Cette adresse e-mail est déjà utilisée."
-            },
-            409
-          );
-        }
-
-        const existingUsername =
-          await env.DB.prepare(
-            `
-            SELECT id
-            FROM users
-            WHERE lower(username) = lower(?)
-            LIMIT 1
-            `
-          )
-            .bind(username)
-            .first();
-
-        if (
-          existingUsername
-        ) {
-          return json(
-            {
-              success:
-                false,
-              error:
-                "Ce pseudo est déjà utilisé."
-            },
-            409
-          );
-        }
-
-        const passwordHash =
-          await hashPassword(
-            password
-          );
-
-        const userId =
-          crypto.randomUUID();
-
-        const now =
-          Math.floor(
-            Date.now() / 1000
-          );
-
-        await env.DB.prepare(
-          `
-          INSERT INTO users
-          (
-            id,
-            username,
-            email,
-            password_hash,
-            created_at,
-            updated_at
-          )
-          VALUES (?, ?, ?, ?, ?, ?)
-          `
-        )
-          .bind(
-            userId,
-            username,
-            email,
-            passwordHash,
-            now,
-            now
-          )
-          .run();
-
-        const {
-          sessionId
-        } =
-          await createSession(
-            userId
-          );
-
-        ctx.waitUntil(
-          cleanupExpiredSessions()
-        );
-
-        return json(
-          {
-            success:
-              true,
-            user: {
-              id:
-                userId,
-              username,
-              email
-            }
-          },
-          201,
-          {
-            "Set-Cookie":
-              sessionCookie(
-                sessionId
-              )
-          }
-        );
-      } catch (
-        error
-      ) {
-        return json(
-          {
-            success:
-              false,
-            error:
-              "Impossible de créer le compte."
-          },
-          500
-        );
-      }
-    }
-
-    /*
-     * ============================================================
-     * ROUTE : CONNEXION
-     * ============================================================
-     */
-
-    if (
-      url.pathname ===
-        "/api/login" &&
-      request.method ===
-        "POST"
-    ) {
-      if (!env.DB) {
-        return json(
-          {
-            success:
-              false,
-            error:
-              "La base de données n'est pas configurée."
-          },
-          500
-        );
-      }
-
-      const body =
-        await readJson(
-          request
-        );
-
-      if (!body) {
-        return json(
-          {
-            success:
-              false,
-            error:
-              "Données invalides."
-          },
-          400
-        );
-      }
-
-      const email =
-        normalizeEmail(
-          body.email
-        );
-
-      const password =
-        typeof body.password ===
-        "string"
-          ? body.password
-          : "";
-
-      if (
-        !validateEmail(
-          email
-        ) ||
-        !password
-      ) {
-        return json(
-          {
-            success:
-              false,
-            error:
-              "Adresse e-mail ou mot de passe incorrect."
-          },
-          401
-        );
-      }
-
-      try {
-        const user =
-          await env.DB.prepare(
-            `
-            SELECT
-              id,
-              username,
-              email,
-              password_hash,
-              created_at
-            FROM users
-            WHERE email = ?
-            LIMIT 1
-            `
-          )
-            .bind(email)
-            .first();
-
-        /*
-         * Message volontairement générique :
-         * on ne révèle pas si l'adresse existe.
-         */
-
-        if (
-          !user
-        ) {
-          return json(
-            {
-              success:
-                false,
-              error:
-                "Adresse e-mail ou mot de passe incorrect."
-            },
-            401
-          );
-        }
-
-        const valid =
-          await verifyPassword(
-            password,
-            user.password_hash
-          );
-
-        if (!valid) {
-          return json(
-            {
-              success:
-                false,
-              error:
-                "Adresse e-mail ou mot de passe incorrect."
-            },
-            401
-          );
-        }
-
-        /*
-         * Une nouvelle connexion crée une nouvelle session.
-         * Les anciennes sessions restent valides jusqu'à
-         * expiration ou déconnexion.
-         */
-
-        const {
-          sessionId
-        } =
-          await createSession(
-            user.id
-          );
-
-        ctx.waitUntil(
-          cleanupExpiredSessions()
-        );
-
-        return json(
-          {
-            success:
-              true,
-            user: {
-              id:
-                user.id,
-              username:
-                user.username,
-              email:
-                user.email,
-              created_at:
-                user.created_at
-            }
-          },
-          200,
-          {
-            "Set-Cookie":
-              sessionCookie(
-                sessionId
-              )
-          }
-        );
-      } catch (
-        error
-      ) {
-        return json(
-          {
-            success:
-              false,
-            error:
-              "Erreur lors de la connexion."
-          },
-          500
-        );
-      }
-    }
-
-    /*
-     * ============================================================
-     * ROUTE : DECONNEXION
-     * ============================================================
-     */
-
-    if (
-      url.pathname ===
-        "/api/logout" &&
-      request.method ===
-        "POST"
-    ) {
-      const sessionId =
-        getSessionId(
-          request
-        );
-
-      if (
-        sessionId &&
-        env.DB
-      ) {
-        try {
-          await env.DB.prepare(
-            `
-            DELETE FROM sessions
-            WHERE id = ?
-            `
-          )
-            .bind(
-              sessionId
-            )
-            .run();
-        } catch {
-          /*
-           * Même si la suppression D1 échoue,
-           * le cookie sera supprimé côté navigateur.
-           */
-        }
-      }
-
-      return json(
-        {
-          success:
-            true
-        },
-        200,
-        {
-          "Set-Cookie":
-            clearSessionCookie()
-        }
-      );
-    }
-
-    /*
-     * ============================================================
-     * ROUTE : UTILISATEUR CONNECTE
-     * ============================================================
-     */
-
-    if (
-      url.pathname ===
-        "/api/me" &&
-      request.method ===
-        "GET"
-    ) {
-      try {
-        const user =
-          await getCurrentUser(
-            request
-          );
-
-        if (!user) {
-          return json({
-            success:
-              true,
-            authenticated:
-              false,
-            user:
-              null
-          });
-        }
-
-        return json({
-          success:
-            true,
-          authenticated:
-            true,
-          user
-        });
-      } catch (
-        error
-      ) {
-        return json(
-          {
-            success:
-              false,
-            error:
-              "Impossible de vérifier la session."
-          },
-          500
-        );
-      }
     }
 
     /*
@@ -2576,14 +1490,10 @@ export default {
           "title"
         );
 
-      if (
-        !artist ||
-        !title
-      ) {
+      if (!artist || !title) {
         return json(
           {
-            success:
-              false,
+            success: false,
             error:
               "Artiste et titre requis."
           },
@@ -2627,13 +1537,10 @@ export default {
             10000
           );
 
-        if (
-          !response.ok
-        ) {
+        if (!response.ok) {
           return json(
             {
-              success:
-                false,
+              success: false,
               error:
                 "MusicBrainz HTTP " +
                 response.status
@@ -2646,26 +1553,21 @@ export default {
           await response.json();
 
         return json({
-          success:
-            true,
+          success: true,
           artist,
           title,
           recordings:
             data.recordings ||
             []
         });
-      } catch (
-        error
-      ) {
+      } catch (error) {
         return json(
           {
-            success:
-              false,
-            error:
-              String(
-                error.message ||
-                error
-              )
+            success: false,
+            error: String(
+              error.message ||
+              error
+            )
           },
           500
         );
@@ -2692,14 +1594,10 @@ export default {
           "title"
         );
 
-      if (
-        !artist ||
-        !title
-      ) {
+      if (!artist || !title) {
         return json(
           {
-            success:
-              false,
+            success: false,
             error:
               "Artiste et titre requis."
           },
@@ -2715,36 +1613,27 @@ export default {
           );
 
         return json({
-          success:
-            true,
+          success: true,
           artist,
           title,
           found:
-            Boolean(
-              lyrics
-            ),
+            Boolean(lyrics),
           lyrics:
-            lyrics ||
-            null
+            lyrics || null
         });
-      } catch (
-        error
-      ) {
+      } catch (error) {
         return json(
           {
-            success:
-              false,
-            error:
-              String(
-                error.message ||
-                error
-              )
+            success: false,
+            error: String(
+              error.message ||
+              error
+            )
           },
           500
         );
       }
     }
-
     /*
      * ============================================================
      * API QUESTIONS
@@ -2770,25 +1659,97 @@ export default {
           "difficulty"
         ) || "all";
 
-      const requestedNumber =
+      let number =
         Number(
           url.searchParams.get(
             "number"
-          ) || "10"
+          ) || 5
         );
 
-      const number =
-        Math.min(
-          Math.max(
-            Number.isFinite(
-              requestedNumber
-            )
-              ? requestedNumber
-              : 10,
-            1
-          ),
-          30
+      if (
+        !Number.isFinite(number)
+      ) {
+        number = 5;
+      }
+
+      number =
+        Math.max(
+          1,
+          Math.min(
+            30,
+            Math.floor(number)
+          )
         );
+
+      const allowedGenres = [
+        "all",
+        "variete-francaise",
+        "pop-rock-francais",
+        "rap-francais",
+        "pop-actuelle"
+      ];
+
+      const allowedEras = [
+        "all",
+        "1960-1979",
+        "1980-1989",
+        "1990-1999",
+        "2000-2009",
+        "2010-2019",
+        "2020-2026"
+      ];
+
+      const allowedDifficulties = [
+        "all",
+        "easy",
+        "medium",
+        "hard"
+      ];
+
+      if (
+        !allowedGenres.includes(
+          genre
+        )
+      ) {
+        return json(
+          {
+            success: false,
+            error:
+              "Genre invalide."
+          },
+          400
+        );
+      }
+
+      if (
+        !allowedEras.includes(
+          era
+        )
+      ) {
+        return json(
+          {
+            success: false,
+            error:
+              "Période invalide."
+          },
+          400
+        );
+      }
+
+      if (
+        !allowedDifficulties.includes(
+          difficulty
+        )
+      ) {
+        return json(
+          {
+            success: false,
+            error:
+              "Difficulté invalide."
+          },
+          400
+        );
+      }
 
       try {
         const answerKey =
@@ -2804,32 +1765,26 @@ export default {
           });
 
         return json({
-          success:
-            true,
-
+          success: true,
           questions:
             result.questions,
-
-          requested:
-            number,
-
-          count:
-            result.questions
-              .length,
-
           diagnostics:
             result.diagnostics
         });
-      } catch (
-        error
-      ) {
+      } catch (error) {
+        console.error(
+          "ERREUR QUESTIONS :",
+          error
+        );
+
         return json(
           {
-            success:
-              false,
+            success: false,
             error:
+              "Impossible de générer les questions.",
+            debug:
               String(
-                error.message ||
+                error?.message ||
                 error
               )
           },
@@ -2858,8 +1813,7 @@ export default {
       } catch {
         return json(
           {
-            success:
-              false,
+            success: false,
             error:
               "Corps de requête JSON invalide."
           },
@@ -2868,16 +1822,26 @@ export default {
       }
 
       const token =
-        body &&
-        body.token;
+        String(
+          body?.token || ""
+        );
+
+      const submittedArtist =
+        String(
+          body?.artist || ""
+        ).trim();
+
+      const submittedTitle =
+        String(
+          body?.title || ""
+        ).trim();
 
       if (!token) {
         return json(
           {
-            success:
-              false,
+            success: false,
             error:
-              "Jeton de question manquant."
+              "Token de réponse manquant."
           },
           400
         );
@@ -2893,24 +1857,29 @@ export default {
             answerKey
           );
 
-        const playerArtist =
-          normalize(
-            body.artist ||
-              ""
+        if (!answer) {
+          return json(
+            {
+              success: false,
+              error:
+                "Réponse invalide ou expirée."
+            },
+            400
           );
+        }
 
-        const playerTitle =
+        const artistCorrect =
           normalize(
-            body.title ||
-              ""
-          );
-
-        const expectedArtist =
+            submittedArtist
+          ) ===
           normalize(
             answer.artist
           );
 
-        const expectedTitle =
+        const titleCorrect =
+          normalize(
+            submittedTitle
+          ) ===
           normalize(
             answer.title
           );
@@ -2918,41 +1887,1054 @@ export default {
         let points = 0;
 
         if (
-          playerArtist !==
-            "" &&
-          playerArtist ===
-            expectedArtist
+          artistCorrect
         ) {
           points++;
         }
 
         if (
-          playerTitle !==
-            "" &&
-          playerTitle ===
-            expectedTitle
+          titleCorrect
         ) {
           points++;
         }
 
         return json({
-          success:
-            true,
-          points,
+          success: true,
+          artistCorrect,
+          titleCorrect,
           correctArtist:
             answer.artist,
           correctTitle:
-            answer.title
+            answer.title,
+          points
         });
+      } catch (error) {
+        console.error(
+          "ERREUR VALIDATION :",
+          error
+        );
+
+        return json(
+          {
+            success: false,
+            error:
+              "Impossible de valider la réponse.",
+            debug:
+              String(
+                error?.message ||
+                error
+              )
+          },
+          500
+        );
+      }
+    }
+
+    /*
+     * ============================================================
+     * AUTHENTIFICATION
+     * ============================================================
+     */
+
+    const SESSION_MAX_AGE =
+      60 * 60 * 24 * 30;
+
+    function base64UrlEncode(
+      bytes
+    ) {
+      let binary = "";
+
+      for (
+        const byte
+        of bytes
+      ) {
+        binary += String.fromCharCode(
+          byte
+        );
+      }
+
+      return btoa(binary)
+        .replace(
+          /\+/g,
+          "-"
+        )
+        .replace(
+          /\//g,
+          "_"
+        )
+        .replace(
+          /=+$/g,
+          ""
+        );
+    }
+
+    function base64UrlDecode(
+      value
+    ) {
+      const normalized =
+        value
+          .replace(
+            /-/g,
+            "+"
+          )
+          .replace(
+            /_/g,
+            "/"
+          );
+
+      const padding =
+        normalized.length % 4 ===
+        0
+          ? ""
+          : "=".repeat(
+              4 -
+                (normalized.length %
+                  4)
+            );
+
+      const binary =
+        atob(
+          normalized +
+            padding
+        );
+
+      const bytes =
+        new Uint8Array(
+          binary.length
+        );
+
+      for (
+        let i = 0;
+        i < binary.length;
+        i++
+      ) {
+        bytes[i] =
+          binary.charCodeAt(
+            i
+          );
+      }
+
+      return bytes;
+    }
+
+    function randomId(
+      byteLength = 32
+    ) {
+      const bytes =
+        new Uint8Array(
+          byteLength
+        );
+
+      crypto.getRandomValues(
+        bytes
+      );
+
+      return base64UrlEncode(
+        bytes
+      );
+    }
+
+    async function hashPassword(
+      password
+    ) {
+      const salt =
+        new Uint8Array(
+          16
+        );
+
+      crypto.getRandomValues(
+        salt
+      );
+
+      const passwordKey =
+        await crypto.subtle.importKey(
+          "raw",
+          new TextEncoder().encode(
+            password
+          ),
+          "PBKDF2",
+          false,
+          [
+            "deriveBits"
+          ]
+        );
+
+      const iterations =
+        150000;
+
+      const derivedBits =
+        await crypto.subtle.deriveBits(
+          {
+            name:
+              "PBKDF2",
+            salt,
+            iterations,
+            hash:
+              "SHA-256"
+          },
+          passwordKey,
+          256
+        );
+
+      return [
+        "pbkdf2",
+        "sha256",
+        String(
+          iterations
+        ),
+        base64UrlEncode(
+          salt
+        ),
+        base64UrlEncode(
+          new Uint8Array(
+            derivedBits
+          )
+        )
+      ].join("$");
+    }
+
+    async function verifyPassword(
+      password,
+      stored
+    ) {
+      try {
+        const parts =
+          String(
+            stored || ""
+          ).split("$");
+
+        if (
+          parts.length !== 5 ||
+          parts[0] !==
+            "pbkdf2" ||
+          parts[1] !==
+            "sha256"
+        ) {
+          return false;
+        }
+
+        const iterations =
+          Number(
+            parts[2]
+          );
+
+        if (
+          !Number.isInteger(
+            iterations
+          ) ||
+          iterations < 100000
+        ) {
+          return false;
+        }
+
+        const salt =
+          base64UrlDecode(
+            parts[3]
+          );
+
+        const expected =
+          base64UrlDecode(
+            parts[4]
+          );
+
+        const passwordKey =
+          await crypto.subtle.importKey(
+            "raw",
+            new TextEncoder().encode(
+              password
+            ),
+            "PBKDF2",
+            false,
+            [
+              "deriveBits"
+            ]
+          );
+
+        const derivedBits =
+          await crypto.subtle.deriveBits(
+            {
+              name:
+                "PBKDF2",
+              salt,
+              iterations,
+              hash:
+                "SHA-256"
+            },
+            passwordKey,
+            256
+          );
+
+        return constantTimeEqual(
+          new Uint8Array(
+            derivedBits
+          ),
+          expected
+        );
+      } catch {
+        return false;
+      }
+    }
+
+    function constantTimeEqual(
+      a,
+      b
+    ) {
+      if (
+        !(a instanceof Uint8Array) ||
+        !(b instanceof Uint8Array)
+      ) {
+        return false;
+      }
+
+      if (
+        a.length !==
+        b.length
+      ) {
+        return false;
+      }
+
+      let result = 0;
+
+      for (
+        let i = 0;
+        i < a.length;
+        i++
+      ) {
+        result |=
+          a[i] ^ b[i];
+      }
+
+      return result === 0;
+    }
+
+    function parseCookies(
+      request
+    ) {
+      const header =
+        request.headers.get(
+          "Cookie"
+        );
+
+      const cookies =
+        {};
+
+      if (!header) {
+        return cookies;
+      }
+
+      for (
+        const part
+        of header.split(";")
+      ) {
+        const index =
+          part.indexOf("=");
+
+        if (
+          index === -1
+        ) {
+          continue;
+        }
+
+        const name =
+          part
+            .slice(
+              0,
+              index
+            )
+            .trim();
+
+        const value =
+          part
+            .slice(
+              index + 1
+            )
+            .trim();
+
+        cookies[name] =
+          value;
+      }
+
+      return cookies;
+    }
+
+    function sessionCookie(
+      sessionId
+    ) {
+      return (
+        "__Host-session=" +
+        encodeURIComponent(
+          sessionId
+        ) +
+        "; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=" +
+        SESSION_MAX_AGE
+      );
+    }
+
+    function expiredSessionCookie() {
+      return (
+        "__Host-session=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0"
+      );
+    }
+
+    async function getCurrentUser(
+      request,
+      env
+    ) {
+      if (!env.DB) {
+        return null;
+      }
+
+      const cookies =
+        parseCookies(
+          request
+        );
+
+      const sessionId =
+        cookies[
+          "__Host-session"
+        ];
+
+      if (!sessionId) {
+        return null;
+      }
+
+      const session =
+        await env.DB.prepare(
+          `SELECT
+             s.id,
+             s.user_id,
+             s.expires_at,
+             u.username,
+             u.email,
+             u.created_at
+           FROM sessions s
+           INNER JOIN users u
+             ON u.id = s.user_id
+           WHERE s.id = ?
+             AND s.expires_at > ?
+           LIMIT 1`
+        )
+          .bind(
+            sessionId,
+            Date.now()
+          )
+          .first();
+
+      if (!session) {
+        return null;
+      }
+
+      return {
+        id:
+          session.user_id,
+        username:
+          session.username,
+        email:
+          session.email,
+        createdAt:
+          session.created_at
+      };
+    }
+
+    function publicUser(
+      user
+    ) {
+      if (!user) {
+        return null;
+      }
+
+      return {
+        id:
+          user.id,
+        username:
+          user.username,
+        email:
+          user.email,
+        createdAt:
+          user.createdAt
+      };
+    }
+
+    /*
+     * ============================================================
+     * API ME
+     * ============================================================
+     */
+
+    if (
+      url.pathname ===
+        "/api/me" &&
+      request.method ===
+        "GET"
+    ) {
+      try {
+        const user =
+          await getCurrentUser(
+            request,
+            env
+          );
+
+        return json({
+          success: true,
+          authenticated:
+            Boolean(user),
+          user:
+            publicUser(user)
+        });
+      } catch (error) {
+        console.error(
+          "ERREUR ME :",
+          error
+        );
+
+        return json(
+          {
+            success: false,
+            error:
+              "Impossible de vérifier la session.",
+            debug:
+              String(
+                error?.message ||
+                error
+              )
+          },
+          500
+        );
+      }
+    }
+
+    /*
+     * ============================================================
+     * API REGISTER
+     * ============================================================
+     */
+
+    if (
+      url.pathname ===
+        "/api/register" &&
+      request.method ===
+        "POST"
+    ) {
+      let body;
+
+      try {
+        body =
+          await request.json();
       } catch {
         return json(
           {
-            success:
-              false,
+            success: false,
             error:
-              "Jeton invalide ou expiré."
+              "Corps de requête JSON invalide."
           },
           400
+        );
+      }
+
+      const username =
+        String(
+          body?.username || ""
+        ).trim();
+
+      const email =
+        String(
+          body?.email || ""
+        )
+          .trim()
+          .toLowerCase();
+
+      const password =
+        String(
+          body?.password || ""
+        );
+
+      if (
+        !/^[A-Za-z0-9_]{3,24}$/.test(
+          username
+        )
+      ) {
+        return json(
+          {
+            success: false,
+            error:
+              "Le nom d'utilisateur doit contenir entre 3 et 24 caractères : lettres, chiffres et underscore uniquement."
+          },
+          400
+        );
+      }
+
+      if (
+        !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
+          email
+        )
+      ) {
+        return json(
+          {
+            success: false,
+            error:
+              "Adresse email invalide."
+          },
+          400
+        );
+      }
+
+      if (
+        password.length < 8
+      ) {
+        return json(
+          {
+            success: false,
+            error:
+              "Le mot de passe doit contenir au moins 8 caractères."
+          },
+          400
+        );
+      }
+
+      try {
+        if (!env.DB) {
+          throw new Error(
+            "La liaison D1 DB n'est pas configurée dans Cloudflare."
+          );
+        }
+
+        const existing =
+          await env.DB.prepare(
+            `SELECT id
+             FROM users
+             WHERE username = ?
+                OR email = ?
+             LIMIT 1`
+          )
+            .bind(
+              username,
+              email
+            )
+            .first();
+
+        if (existing) {
+          return json(
+            {
+              success: false,
+              error:
+                "Ce nom d'utilisateur ou cette adresse email est déjà utilisé."
+            },
+            409
+          );
+        }
+
+        const id =
+          randomId(16);
+
+        const passwordHash =
+          await hashPassword(
+            password
+          );
+
+        const now =
+          Date.now();
+
+        await env.DB.prepare(
+          `INSERT INTO users
+             (id, username, email, password_hash, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?)`
+        )
+          .bind(
+            id,
+            username,
+            email,
+            passwordHash,
+            now,
+            now
+          )
+          .run();
+
+        const sessionId =
+          randomId(32);
+
+        const expiresAt =
+          now +
+          SESSION_MAX_AGE *
+            1000;
+
+        await env.DB.prepare(
+          `INSERT INTO sessions
+             (id, user_id, expires_at, created_at)
+           VALUES (?, ?, ?, ?)`
+        )
+          .bind(
+            sessionId,
+            id,
+            expiresAt,
+            now
+          )
+          .run();
+
+        const user = {
+          id,
+          username,
+          email,
+          createdAt:
+            now
+        };
+
+        return new Response(
+          JSON.stringify({
+            success: true,
+            user
+          }),
+          {
+            status: 201,
+            headers: {
+              "Content-Type":
+                "application/json; charset=utf-8",
+              "Cache-Control":
+                "no-store",
+              "Set-Cookie":
+                sessionCookie(
+                  sessionId
+                )
+            }
+          }
+        );
+      } catch (error) {
+        console.error(
+          "ERREUR REGISTER :",
+          error
+        );
+
+        return json(
+          {
+            success: false,
+            error:
+              "Impossible de créer le compte.",
+            debug:
+              String(
+                error?.message ||
+                error
+              )
+          },
+          500
+        );
+      }
+    }
+
+    /*
+     * ============================================================
+     * API LOGIN
+     * ============================================================
+     */
+
+    if (
+      url.pathname ===
+        "/api/login" &&
+      request.method ===
+        "POST"
+    ) {
+      let body;
+
+      try {
+        body =
+          await request.json();
+      } catch {
+        return json(
+          {
+            success: false,
+            error:
+              "Corps de requête JSON invalide."
+          },
+          400
+        );
+      }
+
+      const identifier =
+        String(
+          body?.identifier ||
+            body?.email ||
+            body?.username ||
+            ""
+        ).trim();
+
+      const password =
+        String(
+          body?.password || ""
+        );
+
+      if (
+        !identifier ||
+        !password
+      ) {
+        return json(
+          {
+            success: false,
+            error:
+              "Identifiant et mot de passe requis."
+          },
+          400
+        );
+      }
+
+      try {
+        if (!env.DB) {
+          throw new Error(
+            "La liaison D1 DB n'est pas configurée dans Cloudflare."
+          );
+        }
+
+        const user =
+          await env.DB.prepare(
+            `SELECT
+               id,
+               username,
+               email,
+               password_hash,
+               created_at
+             FROM users
+             WHERE LOWER(email) = LOWER(?)
+                OR LOWER(username) = LOWER(?)
+             LIMIT 1`
+          )
+            .bind(
+              identifier,
+              identifier
+            )
+            .first();
+
+        if (!user) {
+          return json(
+            {
+              success: false,
+              error:
+                "Identifiant ou mot de passe incorrect."
+            },
+            401
+          );
+        }
+
+        const valid =
+          await verifyPassword(
+            password,
+            user.password_hash
+          );
+
+        if (!valid) {
+          return json(
+            {
+              success: false,
+              error:
+                "Identifiant ou mot de passe incorrect."
+            },
+            401
+          );
+        }
+
+        const sessionId =
+          randomId(32);
+
+        const now =
+          Date.now();
+
+        const expiresAt =
+          now +
+          SESSION_MAX_AGE *
+            1000;
+
+        await env.DB.prepare(
+          `INSERT INTO sessions
+             (id, user_id, expires_at, created_at)
+           VALUES (?, ?, ?, ?)`
+        )
+          .bind(
+            sessionId,
+            user.id,
+            expiresAt,
+            now
+          )
+          .run();
+
+        return new Response(
+          JSON.stringify({
+            success: true,
+            user: {
+              id:
+                user.id,
+              username:
+                user.username,
+              email:
+                user.email,
+              createdAt:
+                user.created_at
+            }
+          }),
+          {
+            status: 200,
+            headers: {
+              "Content-Type":
+                "application/json; charset=utf-8",
+              "Cache-Control":
+                "no-store",
+              "Set-Cookie":
+                sessionCookie(
+                  sessionId
+                )
+            }
+          }
+        );
+      } catch (error) {
+        console.error(
+          "ERREUR LOGIN :",
+          error
+        );
+
+        return json(
+          {
+            success: false,
+            error:
+              "Impossible de se connecter.",
+            debug:
+              String(
+                error?.message ||
+                error
+              )
+          },
+          500
+        );
+      }
+    }
+
+    /*
+     * ============================================================
+     * API LOGOUT
+     * ============================================================
+     */
+
+    if (
+      url.pathname ===
+        "/api/logout" &&
+      request.method ===
+        "POST"
+    ) {
+      try {
+        const cookies =
+          parseCookies(
+            request
+          );
+
+        const sessionId =
+          cookies[
+            "__Host-session"
+          ];
+
+        if (
+          sessionId &&
+          env.DB
+        ) {
+          await env.DB.prepare(
+            `DELETE FROM sessions
+             WHERE id = ?`
+          )
+            .bind(
+              sessionId
+            )
+            .run();
+        }
+
+        return new Response(
+          JSON.stringify({
+            success: true
+          }),
+          {
+            status: 200,
+            headers: {
+              "Content-Type":
+                "application/json; charset=utf-8",
+              "Cache-Control":
+                "no-store",
+              "Set-Cookie":
+                expiredSessionCookie()
+            }
+          }
+        );
+      } catch (error) {
+        console.error(
+          "ERREUR LOGOUT :",
+          error
+        );
+
+        return json(
+          {
+            success: false,
+            error:
+              "Impossible de se déconnecter.",
+            debug:
+              String(
+                error?.message ||
+                error
+              )
+          },
+          500
+        );
+      }
+    }
+
+    /*
+     * ============================================================
+     * NETTOYAGE DES SESSIONS EXPIRÉES
+     * ============================================================
+     */
+
+    if (
+      url.pathname ===
+        "/api/cleanup-sessions" &&
+      request.method ===
+        "POST"
+    ) {
+      try {
+        if (!env.DB) {
+          return json(
+            {
+              success: false,
+              error:
+                "D1 non configurée."
+            },
+            500
+          );
+        }
+
+        const result =
+          await env.DB.prepare(
+            `DELETE FROM sessions
+             WHERE expires_at <= ?`
+          )
+            .bind(
+              Date.now()
+            )
+            .run();
+
+        return json({
+          success: true,
+          deleted:
+            result.meta?.changes ||
+            0
+        });
+      } catch (error) {
+        console.error(
+          "ERREUR CLEANUP SESSIONS :",
+          error
+        );
+
+        return json(
+          {
+            success: false,
+            error:
+              "Impossible de nettoyer les sessions.",
+            debug:
+              String(
+                error?.message ||
+                error
+              )
+          },
+          500
         );
       }
     }
